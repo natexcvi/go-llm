@@ -3,6 +3,7 @@ package tools
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 )
 
@@ -10,12 +11,23 @@ type PythonREPL struct {
 	pythonBinary string
 }
 
+func (p *PythonREPL) createVenv() error {
+	if _, err := os.Stat(".venv"); err == nil {
+		return nil
+	}
+	_, err := exec.Command(p.pythonBinary, "-m", "venv", ".venv").Output()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (p *PythonREPL) installModules(modules []string) error {
-	for _, module := range modules {
-		_, err := exec.Command(p.pythonBinary, "-m", "pip", "install", module).Output()
-		if err != nil {
-			return err
-		}
+	args := []string{"-m", "pip", "install"}
+	args = append(args, modules...)
+	_, err := exec.Command("./.venv/bin/python", args...).Output()
+	if err != nil {
+		return err
 	}
 	return nil
 }
@@ -29,13 +41,20 @@ func (p *PythonREPL) Execute(args json.RawMessage) (json.RawMessage, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal args: %w", err)
 	}
+	err = p.createVenv()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create venv: %w", err)
+	}
 	if len(command.Modules) > 0 {
 		err = p.installModules(command.Modules)
 		if err != nil {
+			if exitError, ok := err.(*exec.ExitError); ok {
+				return nil, fmt.Errorf("failed to install modules: %s", string(exitError.Stderr))
+			}
 			return nil, fmt.Errorf("failed to install modules: %w", err)
 		}
 	}
-	out, err := exec.Command("python3", "-c", command.Code).Output()
+	out, err := exec.Command("./.venv/bin/python", "-c", command.Code).Output()
 	if err != nil {
 		if exitError, ok := err.(*exec.ExitError); ok {
 			return nil, fmt.Errorf("python exited with code %d: %s", exitError.ExitCode(), string(exitError.Stderr))

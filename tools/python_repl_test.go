@@ -3,6 +3,7 @@ package tools
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -37,9 +38,21 @@ func TestPythonREPL(t *testing.T) {
 			}`),
 			output: json.RawMessage(`[0,1,2,9]`),
 		},
+		{
+			name: "with modules",
+			repl: NewPythonREPL(),
+			input: json.RawMessage(`{
+				"code": "import requests\nprint([1,2,3])",
+				"modules": ["requests"]
+			}`),
+			output: json.RawMessage(`[1,2,3]`),
+		},
 	}
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
+			t.Cleanup(func() {
+				require.NoError(t, os.RemoveAll(".venv"))
+			})
 			output, err := testCase.repl.Execute(testCase.input)
 			if testCase.expErr != nil {
 				require.EqualError(t, err, testCase.expErr.Error())
