@@ -11,11 +11,11 @@ import (
 
 func TestBash(t *testing.T) {
 	testCases := []struct {
-		name	string
-		bash	*BashTerminal
-		input	json.RawMessage
-		output	json.RawMessage
-		expErr	error
+		name   string
+		bash   *BashTerminal
+		input  json.RawMessage
+		output json.RawMessage
+		expErr error
 	}{
 		{
 			name:   "simple",
