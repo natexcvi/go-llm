@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -35,12 +36,23 @@ func mockSearchService(t *testing.T) {
 		w.Write([]byte(fileString))
 	})
 
+	server := &http.Server{
+		Addr:    ":8080",
+		Handler: mockServer,
+	}
+
 	// Start the mock server on port 8080
 	go func() {
-		if err := http.ListenAndServe(":8080", mockServer); err != nil {
+		if err := server.ListenAndServe(); err != nil {
+			if err == http.ErrServerClosed {
+				return
+			}
 			log.Fatal(err)
 		}
 	}()
+	t.Cleanup(func() {
+		require.NoError(t, server.Shutdown(context.Background()))
+	})
 }
 
 func TestWebSearch(t *testing.T) {
