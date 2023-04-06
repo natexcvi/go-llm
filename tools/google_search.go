@@ -14,21 +14,18 @@ type SearchResult struct {
 }
 
 type WebSearch struct {
-	ServiceURL  string
-	ServiceName string
+	ServiceURL string
 }
 
-func NewWebSearch(serviceURL, serviceName string) *WebSearch {
+func NewWebSearch(serviceURL string) *WebSearch {
 	return &WebSearch{
-		ServiceURL:  serviceURL,
-		ServiceName: serviceName,
+		ServiceURL: serviceURL,
 	}
 }
 
 func NewGoogleSearch() *WebSearch {
 	return &WebSearch{
-		ServiceURL:  "https://google.com/search/",
-		ServiceName: "Google",
+		ServiceURL: "https://google.com/search/",
 	}
 }
 
@@ -48,11 +45,11 @@ func (ws *WebSearch) Execute(args json.RawMessage) (json.RawMessage, error) {
 }
 
 func (ws *WebSearch) Name() string {
-	return "web_search"
+	return "google_search"
 }
 
 func (ws *WebSearch) Description() string {
-	return fmt.Sprintf("A tool for searching the web using %s.", ws.ServiceName)
+	return fmt.Sprintf("A tool for searching the web using Google.")
 }
 
 func (ws *WebSearch) ArgsSchema() json.RawMessage {
