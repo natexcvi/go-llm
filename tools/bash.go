@@ -2,6 +2,7 @@ package tools
 
 import (
 	"encoding/json"
+	"fmt"
 	"os/exec"
 )
 
@@ -18,6 +19,9 @@ func (b *BashTerminal) Execute(args json.RawMessage) (json.RawMessage, error) {
 	}
 	out, err := exec.Command("bash", "-c", command.Command).Output()
 	if err != nil {
+		if exitError, ok := err.(*exec.ExitError); ok {
+			return nil, fmt.Errorf("bash exited with code %d: %s", exitError.ExitCode(), string(exitError.Stderr))
+		}
 		return nil, err
 	}
 	return json.RawMessage(out), nil

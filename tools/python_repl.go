@@ -27,12 +27,12 @@ func (p *PythonREPL) Execute(args json.RawMessage) (json.RawMessage, error) {
 	}
 	err := json.Unmarshal(args, &command)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to unmarshal args: %w", err)
 	}
 	if len(command.Modules) > 0 {
 		err = p.installModules(command.Modules)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to install modules: %w", err)
 		}
 	}
 	out, err := exec.Command("python3", "-c", command.Code).Output()

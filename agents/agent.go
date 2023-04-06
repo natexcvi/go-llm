@@ -39,6 +39,10 @@ type ChainAgentThought struct {
 	Content string
 }
 
+func (a *ChainAgentThought) Encode() string {
+	return fmt.Sprintf(MessageFormat, ThoughtCode, a.Content)
+}
+
 func ParseChainAgentThought(thought *engines.ChatMessage) *ChainAgentThought {
 	return &ChainAgentThought{
 		Content: strings.TrimPrefix(thought.Text, fmt.Sprintf(MessagePrefix, ThoughtCode)),
@@ -48,6 +52,10 @@ func ParseChainAgentThought(thought *engines.ChatMessage) *ChainAgentThought {
 type ChainAgentAction struct {
 	Tool tools.Tool
 	Args json.RawMessage
+}
+
+func (a *ChainAgentAction) Encode() string {
+	return fmt.Sprintf(MessageFormat, ActionCode, fmt.Sprintf("%s(%s)", a.Tool.Name(), a.Args))
 }
 
 func ParseChainAgentAction(msg *engines.ChatMessage, tools map[string]tools.Tool) (*ChainAgentAction, error) {
