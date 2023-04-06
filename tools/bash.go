@@ -24,7 +24,7 @@ func (b *BashTerminal) Execute(args json.RawMessage) (json.RawMessage, error) {
 		}
 		return nil, err
 	}
-	return json.RawMessage(out), nil
+	return json.Marshal(string(out))
 }
 
 func (b *BashTerminal) Name() string {
