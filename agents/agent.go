@@ -101,6 +101,14 @@ type ChainAgent[T json.Marshaler, S any] struct {
 	Memory              memory.Memory
 }
 
+type ChainAgentObservation struct {
+	Content string
+}
+
+func (a *ChainAgentObservation) Encode() string {
+	return fmt.Sprintf(MessageFormat, ObservationCode, a.Content)
+}
+
 func (agent *ChainAgent[T, S]) executeAction(action *ChainAgentAction) (obs *engines.ChatMessage) {
 	actionOutput, err := action.Tool.Execute(action.Args)
 	if err != nil {
