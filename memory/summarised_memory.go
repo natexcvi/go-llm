@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/natexcvi/go-llm/engines"
+	log "github.com/sirupsen/logrus"
 )
 
 type SummarisedMemory struct {
@@ -21,6 +22,9 @@ func (memory *SummarisedMemory) reduceBuffer() {
 }
 
 func (memory *SummarisedMemory) updateMemoryState(msg ...*engines.ChatMessage) error {
+	if memory.memoryState == "" {
+		memory.memoryState = "<memory state is empty>"
+	}
 	prompt := engines.ChatPrompt{
 		History: []*engines.ChatMessage{
 			{
@@ -38,7 +42,27 @@ func (memory *SummarisedMemory) updateMemoryState(msg ...*engines.ChatMessage) e
 			},
 			{
 				Role: engines.ConvRoleUser,
-				Text: "Memory state:\n\n" + memory.memoryState,
+				Text: "Memory state:\n\nThe agent is trying to find the derivative of f(x)=ln(x) " +
+					"in order to find the maximum of the function. The agent has already " +
+					"attempted to find the derivative of f(x)=ln(x) using a " +
+					"Google search, but the results were not helpful.",
+			},
+			{
+				Role: engines.ConvRoleUser,
+				Text: "Role: assistant\nContent: THT: I should use the WolframAlpha tool to find the derivative.",
+			},
+			{
+				Role: engines.ConvRoleAssistant,
+				Text: "The agent is trying to find the derivative of f(x)=ln(x) " +
+					"in order to find the maximum of the function. The agent has already " +
+					"attempted to find the derivative of f(x)=ln(x) using a " +
+					"Google search, but the results were not helpful." +
+					"The agent has " +
+					"now decided to check Wolfram Alpha for the derivative of f(x)=ln(x).",
+			},
+			{
+				Role: engines.ConvRoleUser,
+				Text: "These were examples. Now my current memory state is:\n\n" + memory.memoryState,
 			},
 		},
 	}
@@ -53,6 +77,7 @@ func (memory *SummarisedMemory) updateMemoryState(msg ...*engines.ChatMessage) e
 		return fmt.Errorf("failed to update memory state: %w", err)
 	}
 	memory.memoryState = updatedMemState.Text
+	log.Debugf("Updated memory state: %s", memory.memoryState)
 	return nil
 }
 
