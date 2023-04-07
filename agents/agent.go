@@ -101,6 +101,7 @@ type ChainAgent[T json.Marshaler, S any] struct {
 	OutputValidators    []func(S) error
 	MaxSolutionAttempts int
 	Memory              memory.Memory
+	ActionConfirmation  func(action *ChainAgentAction) bool
 }
 
 type ChainAgentObservation struct {
@@ -112,6 +113,12 @@ func (a *ChainAgentObservation) Encode() string {
 }
 
 func (agent *ChainAgent[T, S]) executeAction(action *ChainAgentAction) (obs *engines.ChatMessage) {
+	if agent.ActionConfirmation != nil && !agent.ActionConfirmation(action) {
+		return &engines.ChatMessage{
+			Role: engines.ConvRoleSystem,
+			Text: fmt.Sprintf(MessageFormat, ErrorCode, "action cancelled by the user"),
+		}
+	}
 	actionOutput, err := action.Tool.Execute(action.Args)
 	if err != nil {
 		log.Debugf("action error: %s", err.Error())
@@ -272,5 +279,10 @@ func (agent *ChainAgent[T, S]) WithOutputValidators(validators ...func(S) error)
 
 func (agent *ChainAgent[T, S]) WithMaxSolutionAttempts(max int) *ChainAgent[T, S] {
 	agent.MaxSolutionAttempts = max
+	return agent
+}
+
+func (agent *ChainAgent[T, S]) WithActionConfirmation(actionConfirmationProvider func(*ChainAgentAction) bool) *ChainAgent[T, S] {
+	agent.ActionConfirmation = actionConfirmationProvider
 	return agent
 }

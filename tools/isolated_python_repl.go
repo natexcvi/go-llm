@@ -55,7 +55,7 @@ func (repl *IsolatedPythonREPL) Execute(arg json.RawMessage) (json.RawMessage, e
 }
 
 func (repl *IsolatedPythonREPL) Name() string {
-	return "python_repl"
+	return "isolated_python"
 }
 
 func (repl *IsolatedPythonREPL) Description() string {
@@ -64,5 +64,5 @@ func (repl *IsolatedPythonREPL) Description() string {
 }
 
 func (repl *IsolatedPythonREPL) ArgsSchema() json.RawMessage {
-	return json.RawMessage(`{"code": "the Python code to execute"}`)
+	return json.RawMessage(`{"code": "the Python code to execute", "modules": ["a list", "of modules", "to install"]}`)
 }
