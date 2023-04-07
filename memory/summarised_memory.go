@@ -2,8 +2,10 @@ package memory
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/natexcvi/go-llm/engines"
+	"github.com/samber/lo"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -38,31 +40,21 @@ func (memory *SummarisedMemory) updateMemoryState(msg ...*engines.ChatMessage) e
 					"it needs for completing its task. Specifically, you should make sure " +
 					"you specify actions the agent has taken and their results, as well as " +
 					"intentions of the agents and its action plan. Do not include any other text " +
-					"in your response.",
+					"in your response. Remember, the smart agent will read it and use it " +
+					"as its context for further action, so try to be helpful.",
+			},
+			{
+				Role: engines.ConvRoleSystem,
+				Text: fmt.Sprintf(
+					"For context, this is the task the smart agent was given:\n\n%s",
+					strings.Join(lo.Map(memory.originalPrompt.History, func(m *engines.ChatMessage, _ int) string {
+						return fmt.Sprintf("Role: %s\nContent: %s", m.Role, m.Text)
+					}), "\n\n"),
+				),
 			},
 			{
 				Role: engines.ConvRoleUser,
-				Text: "Memory state:\n\nThe agent is trying to find the derivative of f(x)=ln(x) " +
-					"in order to find the maximum of the function. The agent has already " +
-					"attempted to find the derivative of f(x)=ln(x) using a " +
-					"Google search, but the results were not helpful.",
-			},
-			{
-				Role: engines.ConvRoleUser,
-				Text: "Role: assistant\nContent: THT: I should use the WolframAlpha tool to find the derivative.",
-			},
-			{
-				Role: engines.ConvRoleAssistant,
-				Text: "The agent is trying to find the derivative of f(x)=ln(x) " +
-					"in order to find the maximum of the function. The agent has already " +
-					"attempted to find the derivative of f(x)=ln(x) using a " +
-					"Google search, but the results were not helpful." +
-					"The agent has " +
-					"now decided to check Wolfram Alpha for the derivative of f(x)=ln(x).",
-			},
-			{
-				Role: engines.ConvRoleUser,
-				Text: "These were examples. Now my current memory state is:\n\n" + memory.memoryState,
+				Text: "The current memory state is:\n\n" + memory.memoryState,
 			},
 		},
 	}
@@ -72,6 +64,11 @@ func (memory *SummarisedMemory) updateMemoryState(msg ...*engines.ChatMessage) e
 			Text: fmt.Sprintf("New message:\n\nRole: %s\nContent: %s", m.Role, m.Text),
 		})
 	}
+	prompt.History = append(prompt.History, &engines.ChatMessage{
+		Role: engines.ConvRoleSystem,
+		Text: "Please update the memory state to reflect the new messages. " +
+			"Do not forget to give proper weight to the current memory state.",
+	})
 	updatedMemState, err := memory.model.Predict(&prompt)
 	if err != nil {
 		return fmt.Errorf("failed to update memory state: %w", err)
