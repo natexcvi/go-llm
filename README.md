@@ -101,6 +101,7 @@ func main() {
 	...
 }
 ```
+> Fun fact: the `tools/bash_test.go` file was written by this very agent, and helped find a bug!
 
 ## Components
 ### Engines
