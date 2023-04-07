@@ -37,6 +37,15 @@ func TestPythonRepl(t *testing.T) {
 			},
 			expOutput: `"hello world\n"`,
 		},
+		{
+			name: "no existing module - error",
+			code: "import requests\nrequests.get('https://httpbin.org/get').json()\nprint('hello world')",
+			modules: []string{
+				"requests",
+				"does-not-exist",
+			},
+			expError: fmt.Errorf("python exited with code 1: ERROR: Could not find a version that satisfies the requirement does-not-exist (from versions: none)\nERROR: No matching distribution found for does-not-exist\n\n[notice] A new release of pip available: 22.3.1 -> 23.0.1\n[notice] To update, run: pip install --upgrade pip\n"),
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {

@@ -1,2 +1,4 @@
 .env
 .vscode
+**/.venv
+output.json
