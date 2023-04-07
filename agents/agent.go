@@ -4,14 +4,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"regexp"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/natexcvi/go-llm/engines"
 	"github.com/natexcvi/go-llm/memory"
 	"github.com/natexcvi/go-llm/tools"
+	"github.com/samber/lo"
 	"golang.org/x/exp/maps"
 )
 
@@ -112,13 +114,13 @@ func (a *ChainAgentObservation) Encode() string {
 func (agent *ChainAgent[T, S]) executeAction(action *ChainAgentAction) (obs *engines.ChatMessage) {
 	actionOutput, err := action.Tool.Execute(action.Args)
 	if err != nil {
-		log.Printf("action error: %s", err.Error())
+		log.Debugf("action error: %s", err.Error())
 		return &engines.ChatMessage{
 			Role: engines.ConvRoleSystem,
 			Text: fmt.Sprintf(MessageFormat, ErrorCode, err.Error()),
 		}
 	}
-	log.Printf("action output: %s", actionOutput)
+	log.Debugf("action output: %s", actionOutput)
 	return &engines.ChatMessage{
 		Role: engines.ConvRoleSystem,
 		Text: fmt.Sprintf(MessageFormat, ObservationCode, actionOutput),
@@ -209,6 +211,7 @@ func (agent *ChainAgent[T, S]) Run(input T) (output S, err error) {
 		return output, fmt.Errorf("invalid input: %w", inputErr)
 	}
 	taskPrompt := agent.Task.Compile(input, agent.Tools)
+	log.Debugf("task prompt: %+v", lo.Map(taskPrompt.History, func(m *engines.ChatMessage, _ int) string { return fmt.Sprintf("%+v", m) }))
 	err = agent.Memory.AddPrompt(taskPrompt)
 	if err != nil {
 		return output, fmt.Errorf("failed to add prompt to memory: %w", err)
@@ -224,6 +227,7 @@ func (agent *ChainAgent[T, S]) Run(input T) (output S, err error) {
 	stepsExecuted := 0
 	for {
 		nextMessages, answer := agent.parseResponse(response)
+		log.Debugf("next messages: %+v", lo.Map(nextMessages, func(m *engines.ChatMessage, _ int) string { return fmt.Sprintf("%+v", m) }))
 		if answer != nil {
 			return answer.Content, nil
 		}
@@ -235,10 +239,10 @@ func (agent *ChainAgent[T, S]) Run(input T) (output S, err error) {
 			return output, errors.New("max solution attempts reached")
 		}
 		response, err = agent.Engine.Predict(prompt)
-		log.Printf("response: %+v\n", response)
 		if err != nil {
 			return output, fmt.Errorf("failed to predict response: %w", err)
 		}
+		log.Debugf("model response: %s", response.Text)
 		err = agent.Memory.Add(response)
 		if err != nil {
 			return output, fmt.Errorf("failed to add response to memory: %w", err)
