@@ -29,7 +29,7 @@ const (
 
 var (
 	actionRegex    = regexp.MustCompile(`^(?P<tool>.*?)\((?P<args>[\s\S]*)\)`)
-	operationRegex = regexp.MustCompile(`^(?P<code>[A-Z]{3}): (?P<content>.*)`)
+	operationRegex = regexp.MustCompile(`(?P<code>[A-Z]{3}): (?P<content>.*)`)
 )
 
 //go:generate mockgen -source=agent.go -destination=mocks/agent.go -package=mocks
