@@ -141,14 +141,7 @@ func (agent *ChainAgent[T, S]) parseResponse(response *engines.ChatMessage) (nex
 		opContent := op[operationRegex.SubexpIndex("content")]
 		switch opCode {
 		case ThoughtCode:
-			thought := ParseChainAgentThought(&engines.ChatMessage{
-				Role: engines.ConvRoleAssistant,
-				Text: opContent,
-			})
-			nextMessages = append(nextMessages, &engines.ChatMessage{
-				Role: engines.ConvRoleAssistant,
-				Text: fmt.Sprintf(MessageFormat, ThoughtCode, thought.Content),
-			})
+			break
 		case ActionCode:
 			action, err := ParseChainAgentAction(&engines.ChatMessage{
 				Role: engines.ConvRoleAssistant,
