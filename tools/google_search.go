@@ -25,7 +25,7 @@ func NewWebSearch(serviceURL string) *WebSearch {
 
 func NewGoogleSearch() *WebSearch {
 	return &WebSearch{
-		ServiceURL: "https://google.com/search/",
+		ServiceURL: "https://google.com/",
 	}
 }
 

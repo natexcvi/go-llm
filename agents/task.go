@@ -95,7 +95,7 @@ func (*Task[T, S]) enrichPromptWithTools(tools map[string]tools.Tool, prompt *en
 			Role: engines.ConvRoleSystem,
 			Text: fmt.Sprintf("Here are some tools you can use. To use a tool, "+
 				"send a message in the form of `%s: tool_name(args)`, "+
-				"where `args` is a valid JSON representation of the arguments"+
+				"where `args` is a valid one-line JSON representation of the arguments"+
 				" to the tool, as specified for it (using JSON schema). You will get "+
 				"the output in "+
 				"a message beginning with `%s: `, or an error message beginning "+
