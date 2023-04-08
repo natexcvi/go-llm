@@ -115,10 +115,15 @@ Currently available tools are:
 - `GoogleSearch` - a tool that allows agents to search Google.
 - `WebpageSummary` - an LLM-based tool that allows agents to get a summary of a webpage.
 - `WolframAlpha` - a tool that allows agents to query WolframAlpha's short answer API.
+
 ### Memory
 A memory system that allows agents to store and retrieve information.
 Currently available memory systems are:
 - `BufferMemory` - which provides each step of the agent with a fixed buffer of recent messages from the conversation history.
 - `SummarisedMemory` - which provides each step of the agent with a summary of the conversation history, powered by an LLM.
+
 ### Agents
 Agents are the main component of the library. Agents can perform complex tasks that involve iterative interactions with the outside world.
+
+### Prebuilt (WIP)
+A collection of ready-made agents that can be easily integrated with your application.
