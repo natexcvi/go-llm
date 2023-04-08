@@ -2,10 +2,8 @@ package memory
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/natexcvi/go-llm/engines"
-	"github.com/samber/lo"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -33,24 +31,17 @@ func (memory *SummarisedMemory) updateMemoryState(msg ...*engines.ChatMessage) e
 				Role: engines.ConvRoleSystem,
 				Text: "You are a smart memory manager. The user sends you two or more messages: " +
 					"one with the current memory state, and the rest with new messages " +
-					"sent to their conversation with a smart, LLM based agent. You should " +
+					"sent to their conversation with a smart, LLM based assistant. You should " +
 					"update the memory state to reflect the new messages' content. " +
 					"Your goal is for the memory state to be as compact as possible, " +
-					"while still providing the smart agent with all the information " +
+					"while still providing the smart assistant with all the information " +
 					"it needs for completing its task. Specifically, you should make sure " +
-					"you specify actions the agent has taken and their results, as well as " +
-					"intentions of the agents and its action plan. Do not include any other text " +
-					"in your response. Remember, the smart agent will read it and use it " +
-					"as its context for further action, so try to be helpful.",
-			},
-			{
-				Role: engines.ConvRoleSystem,
-				Text: fmt.Sprintf(
-					"For context, this is the task the smart agent was given:\n\n%s",
-					strings.Join(lo.Map(memory.originalPrompt.History, func(m *engines.ChatMessage, _ int) string {
-						return fmt.Sprintf("Role: %s\nContent: %s", m.Role, m.Text)
-					}), "\n\n"),
-				),
+					"you specify actions the assistant has taken and their results, as well as " +
+					"intentions of the assistant and its action plan. Do not include any other text " +
+					"in your response. Remember, the smart assistant will read it and use it " +
+					"as its context for further action, so try to be helpful, as if " +
+					"the assistant has just asked you what has been happening in the conversation " +
+					"so far.",
 			},
 			{
 				Role: engines.ConvRoleUser,
