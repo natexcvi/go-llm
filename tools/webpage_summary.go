@@ -1,14 +1,15 @@
 package tools
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"regexp"
+	"strings"
 
+	"github.com/PuerkitoBio/goquery"
 	"github.com/natexcvi/go-llm/engines"
-	"golang.org/x/net/html"
 )
 
 type WebpageSummary struct {
@@ -16,30 +17,24 @@ type WebpageSummary struct {
 }
 
 func (*WebpageSummary) stripHTMLTags(s string) string {
-	// Parse the HTML string into a token stream
-	tokenizer := html.NewTokenizer(bytes.NewBufferString(s))
-
-	// Use a buffer to accumulate the plain text
-	buffer := new(bytes.Buffer)
-
-	// Iterate over the token stream
-	for {
-		// Get the next token
-		tokenType := tokenizer.Next()
-
-		// Stop if we've reached the end of the stream
-		if tokenType == html.ErrorToken {
-			return buffer.String()
-		}
-
-		// Get the current token
-		token := tokenizer.Token()
-
-		// If the token is not a start or end tag, write its content to the buffer
-		if tokenType == html.TextToken {
-			buffer.WriteString(token.Data)
-		}
+	// Remove HTML tags
+	document, err := goquery.NewDocumentFromReader(strings.NewReader(s))
+	if err != nil {
+		return ""
 	}
+	document.Find("script, style").Each(func(index int, item *goquery.Selection) {
+		item.Remove()
+	})
+	text := document.Text()
+
+	// Remove JavaScript code
+	re := regexp.MustCompile(`(?m)^<script.*$[\r\n]*`)
+	text = re.ReplaceAllString(text, "")
+
+	// Remove extra whitespace
+	re = regexp.MustCompile(`\s+`)
+	text = re.ReplaceAllString(text, " ")
+	return text
 }
 
 func (w *WebpageSummary) getStrippedWebpage(url string) (string, error) {
@@ -116,4 +111,8 @@ func (w *WebpageSummary) ArgsSchema() json.RawMessage {
 		"url": "the URL of the web page to summarise",
 		"focus_on": "an optional instruction to focus on a specific part of the web page."
 	}`)
+}
+
+func NewWebpageSummary(model engines.LLM) *WebpageSummary {
+	return &WebpageSummary{model: model}
 }
