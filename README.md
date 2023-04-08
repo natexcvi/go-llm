@@ -1,4 +1,6 @@
 # Go LLM
+[![Go](https://github.com/natexcvi/go-llm/actions/workflows/go.yml/badge.svg)](https://github.com/natexcvi/go-llm/actions/workflows/go.yml)
+
 Integrate the power of large language models (LLM) into your Go application.
 
 ## Usage Example
