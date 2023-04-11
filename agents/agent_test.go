@@ -125,6 +125,70 @@ func TestChainAgent(t *testing.T) {
 						},
 					),
 				},
+				OutputValidators: []func(*Str) error{
+					func(output *Str) error {
+						if *output == "" {
+							return errors.New("output is empty")
+						}
+						return nil
+					},
+				},
+			},
+			input:  newStr("hello"),
+			output: newStr("Hello world"),
+		},
+		{
+			name: "empty output makes validator fail",
+			agent: &ChainAgent[*Str, *Str]{
+				Engine: &MockEngine{
+					Responses: []*engines.ChatMessage{
+						{
+							Role: engines.ConvRoleAssistant,
+							Text: `ACT: echo("world")`,
+						},
+						{
+							Role: engines.ConvRoleAssistant,
+							Text: `ANS: ""`,
+						},
+						{
+							Role: engines.ConvRoleAssistant,
+							Text: `THT: That's right, the output is empty. I'll fix it`,
+						},
+						{
+							Role: engines.ConvRoleAssistant,
+							Text: `ANS: "Hello world"`,
+						},
+					},
+				},
+				Task: &Task[*Str, *Str]{
+					Description: "Say hello to an entity you find yourself",
+					AnswerParser: func(text string) (*Str, error) {
+						var output string
+						err := json.Unmarshal([]byte(text), &output)
+						require.NoError(t, err)
+						return newStr(output), nil
+					},
+				},
+				Memory: newMockMemory(t),
+				Tools: map[string]tools.Tool{
+					"echo": newMockTool(
+						t,
+						"echo",
+						"echoes the input",
+						json.RawMessage(`"the string to echo"`),
+						func(args json.RawMessage) (json.RawMessage, error) {
+							return args, nil
+						},
+					),
+				},
+				OutputValidators: []func(*Str) error{
+					func(output *Str) error {
+						if *output == "" {
+							return errors.New("output is empty")
+						}
+						return nil
+					},
+				},
 			},
 			input:  newStr("hello"),
 			output: newStr("Hello world"),

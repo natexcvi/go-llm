@@ -1,6 +1,9 @@
 package main
 
 import (
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"io"
 	"os"
 
@@ -33,7 +36,18 @@ func main() {
 	configLogger("log.txt", log.DebugLevel)
 	log.Debug("session started")
 	engine := engines.NewGPTEngine(os.Getenv("OPENAI_TOKEN"), "gpt-3.5-turbo")
-	agent, err := prebuilt.NewUnitTestWriter(engine)
+	agent, err := prebuilt.NewUnitTestWriter(engine, func(code string) error {
+		fset := token.NewFileSet()
+		file, err := parser.ParseFile(fset, "", code, parser.AllErrors)
+		if err != nil {
+			return err
+		}
+		_, err = ast.NewPackage(fset, map[string]*ast.File{"": file}, nil, nil)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
 	if err != nil {
 		log.Error(err)
 		return

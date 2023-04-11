@@ -26,7 +26,7 @@ type UnitTestWriterResponse struct {
 	UnitTestFile string `json:"unit_test_file"`
 }
 
-func NewUnitTestWriter(engine engines.LLM) (agents.Agent[UnitTestWriterRequest, UnitTestWriterResponse], error) {
+func NewUnitTestWriter(engine engines.LLM, codeValidator func(code string) error) (agents.Agent[UnitTestWriterRequest, UnitTestWriterResponse], error) {
 	task := &agents.Task[UnitTestWriterRequest, UnitTestWriterResponse]{
 		Description: "You are a coding assistant that specialises in writing " +
 			"unit tests. You will be given a source code file and an example unit test file. " +
@@ -67,5 +67,11 @@ func NewUnitTestWriter(engine engines.LLM) (agents.Agent[UnitTestWriterRequest, 
 			}, nil
 		},
 	}
-	return agents.NewChainAgent(engine, task, memory.NewBufferedMemory(0)), nil
+	agent := agents.NewChainAgent(engine, task, memory.NewBufferedMemory(0))
+	if codeValidator != nil {
+		agent = agent.WithOutputValidators(func(utwr UnitTestWriterResponse) error {
+			return codeValidator(utwr.UnitTestFile)
+		})
+	}
+	return agent, nil
 }
