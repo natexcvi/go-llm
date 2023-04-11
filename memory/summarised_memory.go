@@ -84,15 +84,18 @@ func (memory *SummarisedMemory) AddPrompt(prompt *engines.ChatPrompt) error {
 }
 
 func (memory *SummarisedMemory) PromptWithContext(nextMessages ...*engines.ChatMessage) (*engines.ChatPrompt, error) {
+	promptMessages := make([]*engines.ChatMessage, 0, len(memory.recentMessages)+len(nextMessages))
+	if memory.originalPrompt != nil {
+		promptMessages = append(promptMessages, memory.originalPrompt.History...)
+	}
+	promptMessages = append(promptMessages, &engines.ChatMessage{
+		Role: engines.ConvRoleSystem,
+		Text: fmt.Sprintf("Memory state:\n\n%s", memory.memoryState),
+	})
 	memory.recentMessages = append(memory.recentMessages, nextMessages...)
+	promptMessages = append(promptMessages, memory.recentMessages...)
 	return &engines.ChatPrompt{
-		History: append(
-			append(memory.originalPrompt.History, &engines.ChatMessage{
-				Role: engines.ConvRoleSystem,
-				Text: fmt.Sprintf("Memory state:\n\n%s", memory.memoryState),
-			}),
-			memory.recentMessages...,
-		),
+		History: promptMessages,
 	}, nil
 }
 

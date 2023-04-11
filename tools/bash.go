@@ -39,6 +39,10 @@ func (b *BashTerminal) ArgsSchema() json.RawMessage {
 	return json.RawMessage(`{"command": "the bash command to execute"}`)
 }
 
+func (b *BashTerminal) CompactArgs(args json.RawMessage) json.RawMessage {
+	return args
+}
+
 func NewBashTerminal() *BashTerminal {
 	return &BashTerminal{}
 }

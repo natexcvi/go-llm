@@ -15,8 +15,12 @@ type CodeBaseRefactorRequest struct {
 	Goal string
 }
 
-func (req CodeBaseRefactorRequest) MarshalJSON() ([]byte, error) {
-	return []byte(fmt.Sprintf(`{"dir": "%s", "goal": "%s"}`, req.Dir, req.Goal)), nil
+func (req CodeBaseRefactorRequest) Encode() string {
+	return fmt.Sprintf(`{"dir": "%s", "goal": "%s"}`, req.Dir, req.Goal)
+}
+
+func (req CodeBaseRefactorRequest) Schema() string {
+	return `{"dir": "path to code base", "goal": "refactoring goal"}`
 }
 
 type CodeBaseRefactorResponse struct {
@@ -101,6 +105,6 @@ func NewCodeRefactorAgent(engine engines.LLM) agents.Agent[CodeBaseRefactorReque
 			return res, nil
 		},
 	}
-	agent := agents.NewChainAgent(engine, task, memory.NewSummarisedMemory(3, engine)).WithMaxSolutionAttempts(12).WithTools(tools.NewBashTerminal())
+	agent := agents.NewChainAgent(engine, task, memory.NewSummarisedMemory(3, engine)).WithMaxSolutionAttempts(12).WithTools(tools.NewPythonREPL(), tools.NewBashTerminal())
 	return agent
 }

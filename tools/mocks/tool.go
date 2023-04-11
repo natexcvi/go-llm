@@ -48,6 +48,20 @@ func (mr *MockToolMockRecorder) ArgsSchema() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ArgsSchema", reflect.TypeOf((*MockTool)(nil).ArgsSchema))
 }
 
+// CompactArgs mocks base method.
+func (m *MockTool) CompactArgs(args json.RawMessage) json.RawMessage {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CompactArgs", args)
+	ret0, _ := ret[0].(json.RawMessage)
+	return ret0
+}
+
+// CompactArgs indicates an expected call of CompactArgs.
+func (mr *MockToolMockRecorder) CompactArgs(args interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CompactArgs", reflect.TypeOf((*MockTool)(nil).CompactArgs), args)
+}
+
 // Description mocks base method.
 func (m *MockTool) Description() string {
 	m.ctrl.T.Helper()
@@ -89,4 +103,42 @@ func (m *MockTool) Name() string {
 func (mr *MockToolMockRecorder) Name() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Name", reflect.TypeOf((*MockTool)(nil).Name))
+}
+
+// MockPreprocessingTool is a mock of PreprocessingTool interface.
+type MockPreprocessingTool struct {
+	ctrl     *gomock.Controller
+	recorder *MockPreprocessingToolMockRecorder
+}
+
+// MockPreprocessingToolMockRecorder is the mock recorder for MockPreprocessingTool.
+type MockPreprocessingToolMockRecorder struct {
+	mock *MockPreprocessingTool
+}
+
+// NewMockPreprocessingTool creates a new mock instance.
+func NewMockPreprocessingTool(ctrl *gomock.Controller) *MockPreprocessingTool {
+	mock := &MockPreprocessingTool{ctrl: ctrl}
+	mock.recorder = &MockPreprocessingToolMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockPreprocessingTool) EXPECT() *MockPreprocessingToolMockRecorder {
+	return m.recorder
+}
+
+// Process mocks base method.
+func (m *MockPreprocessingTool) Process(args json.RawMessage) (json.RawMessage, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Process", args)
+	ret0, _ := ret[0].(json.RawMessage)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Process indicates an expected call of Process.
+func (mr *MockPreprocessingToolMockRecorder) Process(args interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Process", reflect.TypeOf((*MockPreprocessingTool)(nil).Process), args)
 }

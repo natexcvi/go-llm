@@ -2,6 +2,7 @@ package prebuilt
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/natexcvi/go-llm/agents"
 	"github.com/natexcvi/go-llm/engines"
@@ -10,11 +11,15 @@ import (
 )
 
 type TradeAssistantRequest struct {
-	Stocks []string
+	Stocks []string `json:"stocks"`
 }
 
-func (req TradeAssistantRequest) MarshalJSON() ([]byte, error) {
-	return json.Marshal(req)
+func (r TradeAssistantRequest) Encode() string {
+	return fmt.Sprintf(`{"stocks": %s}`, r.Stocks)
+}
+
+func (r TradeAssistantRequest) Schema() string {
+	return `{"stocks": "list of stock tickers"}`
 }
 
 type Recommendation string
@@ -49,14 +54,20 @@ func NewTradeAssistantAgent(engine engines.LLM, wolframAlphaAppID string) agents
 					{
 						Role: engines.ConvRoleAssistant,
 						Text: (&agents.ChainAgentThought{
-							Content: "I should look up the stock prices for each stock.",
+							Content: "I should look up the stock price for each stock.",
 						}).Encode(),
 					},
 					{
 						Role: engines.ConvRoleAssistant,
 						Text: (&agents.ChainAgentAction{
-							Tool: tools.NewBashTerminal(),
-							Args: json.RawMessage(`{"command": "curl https://api.iextrading.com/1.0/stock/market/batch?symbols=AAPL,MSFT,GOOG&types=quote"}`),
+							Tool: tools.NewWolframAlpha(wolframAlphaAppID),
+							Args: json.RawMessage(`{"query": "stock price of AAPL"}`),
+						}).Encode(),
+					},
+					{
+						Role: engines.ConvRoleSystem,
+						Text: (&agents.ChainAgentObservation{
+							Content: "AAPL is currently trading at $100.00",
 						}).Encode(),
 					},
 				},

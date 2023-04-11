@@ -77,6 +77,10 @@ func (p *PythonREPL) ArgsSchema() json.RawMessage {
 	return json.RawMessage(`{"code": "the Python code to execute, properly escaped", "modules": ["a list", "of modules", "to install"]}`)
 }
 
+func (p *PythonREPL) CompactArgs(args json.RawMessage) json.RawMessage {
+	return args
+}
+
 func NewPythonREPL() *PythonREPL {
 	return &PythonREPL{
 		pythonBinary: "python3",

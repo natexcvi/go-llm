@@ -66,3 +66,7 @@ func (repl *IsolatedPythonREPL) Description() string {
 func (repl *IsolatedPythonREPL) ArgsSchema() json.RawMessage {
 	return json.RawMessage(`{"code": "the Python code to execute", "modules": ["a list", "of modules", "to install"]}`)
 }
+
+func (repl *IsolatedPythonREPL) CompactArgs(args json.RawMessage) json.RawMessage {
+	return args
+}

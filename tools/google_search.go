@@ -146,3 +146,7 @@ func (ws *WebSearch) search(query string) (searchResults []SearchResult, err err
 	}
 	return searchResults, nil
 }
+
+func (ws *WebSearch) CompactArgs(args json.RawMessage) json.RawMessage {
+	return args
+}

@@ -29,8 +29,12 @@ func (engine *MockEngine) Predict(prompt *engines.ChatPrompt) (*engines.ChatMess
 
 type Str string
 
-func (s *Str) MarshalJSON() ([]byte, error) {
-	return json.Marshal(string(*s))
+func (s *Str) Encode() string {
+	return string(*s)
+}
+
+func (s *Str) Schema() string {
+	return "<some text>"
 }
 
 func (s *Str) UnmarshalJSON(data []byte) error {

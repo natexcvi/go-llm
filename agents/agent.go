@@ -23,13 +23,15 @@ const (
 	AnswerCode      = "ANS"
 	ErrorCode       = "ERR"
 	ObservationCode = "OBS"
+	EndMarker       = "<END>"
 	MessageFormat   = "%s: %s"
 	MessagePrefix   = "%s: "
 )
 
 var (
-	actionRegex    = regexp.MustCompile(`^(?P<tool>.*?)\((?P<args>[\s\S]*)\)`)
-	operationRegex = regexp.MustCompile(`(?P<code>[A-Z]{3}): (?P<content>.*)`)
+	actionRegex              = regexp.MustCompile(`^(?P<tool>.*?)\((?P<args>[\s\S]*)\)`)
+	operationRegex           = regexp.MustCompile(`(?P<code>[A-Z]{3}):\s*(?P<content>[\s\S]*)(?:<END>)`)
+	operationRegexWithoutEnd = regexp.MustCompile(`(?P<code>[A-Z]{3}):\s*(?P<content>[\s\S]*)`)
 )
 
 //go:generate mockgen -source=agent.go -destination=mocks/agent.go -package=mocks
@@ -57,7 +59,7 @@ type ChainAgentAction struct {
 }
 
 func (a *ChainAgentAction) Encode() string {
-	return fmt.Sprintf(MessageFormat, ActionCode, fmt.Sprintf("%s(%s)", a.Tool.Name(), a.Args))
+	return fmt.Sprintf(MessageFormat, ActionCode, fmt.Sprintf("%s(%s)", a.Tool.Name(), a.Tool.CompactArgs(a.Args)))
 }
 
 func ParseChainAgentAction(msg *engines.ChatMessage, tools map[string]tools.Tool) (*ChainAgentAction, error) {
@@ -93,7 +95,7 @@ func (agent *ChainAgent[T, S]) parseChainAgentAnswer(answer *engines.ChatMessage
 	}, nil
 }
 
-type ChainAgent[T json.Marshaler, S any] struct {
+type ChainAgent[T Representable, S any] struct {
 	Engine              engines.LLM
 	Task                *Task[T, S]
 	Tools               map[string]tools.Tool
@@ -135,7 +137,15 @@ func (agent *ChainAgent[T, S]) executeAction(action *ChainAgentAction) (obs *eng
 }
 
 func (agent *ChainAgent[T, S]) parseResponse(response *engines.ChatMessage) (nextMessages []*engines.ChatMessage, answer *ChainAgentAnswer[S]) {
-	ops := operationRegex.FindAllStringSubmatch(response.Text, -1)
+	var exp *regexp.Regexp
+	var ops [][]string
+	for _, candidateExp := range []*regexp.Regexp{operationRegex, operationRegexWithoutEnd} {
+		ops = candidateExp.FindAllStringSubmatch(response.Text, -1)
+		if len(ops) > 0 {
+			exp = candidateExp
+			break
+		}
+	}
 	if len(ops) == 0 {
 		nextMessages = append(nextMessages, &engines.ChatMessage{
 			Role: engines.ConvRoleSystem,
@@ -144,8 +154,8 @@ func (agent *ChainAgent[T, S]) parseResponse(response *engines.ChatMessage) (nex
 		return
 	}
 	for _, op := range ops {
-		opCode := op[operationRegex.SubexpIndex("code")]
-		opContent := op[operationRegex.SubexpIndex("content")]
+		opCode := op[exp.SubexpIndex("code")]
+		opContent := op[exp.SubexpIndex("content")]
 		switch opCode {
 		case ThoughtCode:
 			break
@@ -251,7 +261,7 @@ func (agent *ChainAgent[T, S]) Run(input T) (output S, err error) {
 	}
 }
 
-func NewChainAgent[T json.Marshaler, S any](engine engines.LLM, task *Task[T, S], memory memory.Memory) *ChainAgent[T, S] {
+func NewChainAgent[T Representable, S any](engine engines.LLM, task *Task[T, S], memory memory.Memory) *ChainAgent[T, S] {
 	return &ChainAgent[T, S]{
 		Engine: engine,
 		Task:   task,

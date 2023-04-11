@@ -77,3 +77,7 @@ func (wa *WolframAlpha) Description() string {
 func (wa *WolframAlpha) ArgsSchema() json.RawMessage {
 	return json.RawMessage(`{"query": "the search query, e.g. '2+2' or 'what is the capital of France?'"}`)
 }
+
+func (wa *WolframAlpha) CompactArgs(args json.RawMessage) json.RawMessage {
+	return args
+}

@@ -113,6 +113,10 @@ func (w *WebpageSummary) ArgsSchema() json.RawMessage {
 	}`)
 }
 
+func (w *WebpageSummary) CompactArgs(args json.RawMessage) json.RawMessage {
+	return args
+}
+
 func NewWebpageSummary(model engines.LLM) *WebpageSummary {
 	return &WebpageSummary{model: model}
 }

@@ -5,39 +5,38 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/invopop/jsonschema"
 	"github.com/natexcvi/go-llm/engines"
 	"github.com/natexcvi/go-llm/tools"
 )
 
-type Example[T json.Marshaler, S any] struct {
+type Representable interface {
+	Encode() string
+	Schema() string
+}
+
+type Example[T Representable, S any] struct {
 	Input             T
 	IntermediarySteps []*engines.ChatMessage
 	Answer            S
 }
 
-type Task[T json.Marshaler, S any] struct {
+type Task[T Representable, S any] struct {
 	Description  string
 	Examples     []Example[T, S]
 	AnswerParser func(string) (S, error)
 }
 
 func (task *Task[T, S]) Compile(input T, tools map[string]tools.Tool) *engines.ChatPrompt {
-	inputSchema := jsonschema.Reflect(input)
-	marshaledInputSchema, err := inputSchema.MarshalJSON()
-	if err != nil {
-		panic(err)
-	}
 	prompt := &engines.ChatPrompt{
 		History: []*engines.ChatMessage{
 			{
 				Role: engines.ConvRoleSystem,
 				Text: fmt.Sprintf("You are a smart, autonomous agent given the task below. "+
-					"You will be given input from the user in the following format "+
-					"(provided as a JSON schema): %s. Complete the task step-by-step, "+
+					"You will be given input from the user in the following format:\n\n"+
+					"%s\n\n Complete the task step-by-step, "+
 					"reasoning about your solution steps by sending a message beginning "+
 					"with `%s: `.\n\nTask description: %s",
-					marshaledInputSchema, ThoughtCode, task.Description),
+					input.Schema(), ThoughtCode, task.Description),
 			},
 		},
 	}
@@ -47,15 +46,12 @@ func (task *Task[T, S]) Compile(input T, tools map[string]tools.Tool) *engines.C
 		Role: engines.ConvRoleSystem,
 		Text: fmt.Sprintf("Now, you will be given the input. "+
 			"It's very important that every message you send begins with either "+
-			"`%s: `, `%s: `, or `%s: `, as was explained to you.", ThoughtCode, ActionCode, AnswerCode),
+			"`%s: `, `%s: `, or `%s: `, and end with `%s`.",
+			ThoughtCode, ActionCode, AnswerCode, EndMarker),
 	})
-	marshalledInput, err := input.MarshalJSON()
-	if err != nil {
-		panic(err)
-	}
 	prompt.History = append(prompt.History, &engines.ChatMessage{
 		Role: engines.ConvRoleUser,
-		Text: string(marshalledInput),
+		Text: input.Encode(),
 	})
 	return prompt
 }
@@ -66,18 +62,17 @@ func (task *Task[T, S]) enrichPromptWithExamples(prompt *engines.ChatPrompt) {
 		Text: "Here are some examples of how you might solve this task:",
 	})
 	for _, example := range task.Examples {
-		marshalledInput, err := example.Input.MarshalJSON()
-		if err != nil {
-			panic(err)
-		}
 		prompt.History = append(prompt.History, &engines.ChatMessage{
 			Role: engines.ConvRoleUser,
-			Text: string(marshalledInput),
+			Text: example.Input.Encode(),
 		})
 		for _, step := range example.IntermediarySteps {
 			prompt.History = append(prompt.History, step)
 		}
 		marshalledAnswer, err := json.Marshal(example.Answer)
+		if err != nil {
+			panic(err)
+		}
 		prompt.History = append(prompt.History, &engines.ChatMessage{
 			Role: engines.ConvRoleSystem,
 			Text: fmt.Sprintf(MessageFormat, AnswerCode, string(marshalledAnswer)),
