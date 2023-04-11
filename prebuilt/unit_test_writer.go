@@ -1,6 +1,7 @@
 package prebuilt
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/natexcvi/go-llm/agents"
@@ -57,6 +58,10 @@ func NewUnitTestWriter(engine engines.LLM) (agents.Agent[UnitTestWriterRequest, 
 			},
 		},
 		AnswerParser: func(answer string) (UnitTestWriterResponse, error) {
+			var response UnitTestWriterResponse
+			if err := json.Unmarshal([]byte(answer), &response); err == nil {
+				return response, nil
+			}
 			return UnitTestWriterResponse{
 				UnitTestFile: answer,
 			}, nil
