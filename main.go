@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"io"
 	"os"
 
@@ -22,29 +21,36 @@ func configLogger(toFile string, level log.Level) {
 	}
 }
 
+func readFile(filename string) string {
+	content, err := os.ReadFile(filename)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return string(content)
+}
+
 func main() {
 	configLogger("log.txt", log.DebugLevel)
 	log.Debug("session started")
 	engine := engines.NewGPTEngine(os.Getenv("OPENAI_TOKEN"), "gpt-3.5-turbo")
-	agent := prebuilt.NewCodeRefactorAgent(engine)
-	res, err := agent.Run(prebuilt.CodeBaseRefactorRequest{
-		Dir: "/Users/nate/Git/go-llm/memory",
-		Goal: "Write unit tests for summarised_memory.go, following the example of buffer_memory.go. " +
-			"Use your best judgement, without asking me anything.",
+	agent, err := prebuilt.NewUnitTestWriter(engine)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+	res, err := agent.Run(prebuilt.UnitTestWriterRequest{
+		SourceFile:  readFile("tools/key_value_store.go"),
+		ExampleFile: readFile("tools/bash_test.go"),
 	})
 	if err != nil {
 		log.Error(err)
 		return
 	}
 	log.Info(res)
-	f, err := os.Create("output.json")
+	err = os.WriteFile("tools/key_value_store_test.go", []byte(res.UnitTestFile), 0644)
 	if err != nil {
 		log.Error(err)
 		return
 	}
-	defer f.Close()
-	if err := json.NewEncoder(f).Encode(res); err != nil {
-		log.Error(err)
-		return
-	}
+	log.Debug("session ended")
 }
