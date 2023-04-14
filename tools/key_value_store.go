@@ -7,6 +7,7 @@ import (
 
 	"text/template"
 
+	"github.com/hashicorp/go-multierror"
 	"golang.org/x/exp/maps"
 )
 
@@ -76,26 +77,66 @@ func (s *KeyValueStore) CompactArgs(args json.RawMessage) json.RawMessage {
 	}
 }
 
+func (s *KeyValueStore) recursivelyProcessStringFields(input any, processor func(string) string) any {
+	switch input := input.(type) {
+	case map[string]interface{}:
+		output := map[string]interface{}{}
+		for k, v := range input {
+			output[k] = s.recursivelyProcessStringFields(v, processor)
+		}
+		return output
+	case []interface{}:
+		output := make([]interface{}, len(input))
+		for i, v := range input {
+			output[i] = s.recursivelyProcessStringFields(v, processor)
+		}
+		return output
+	case string:
+		return processor(input)
+	default:
+		return input
+	}
+}
+
 func (s *KeyValueStore) Process(args json.RawMessage) (json.RawMessage, error) {
 	tmpl := template.New("store").Funcs(template.FuncMap{
 		"store": func(key string) string {
 			value, ok := s.store[key]
 			if !ok {
-				return fmt.Sprintf("{{ store \"%s\" }}", key)
+				return fmt.Sprintf("{{ store %q }}", key)
 			}
 			return value
 		},
 	})
-	tmpl, err := tmpl.Parse(string(args))
+	var unmarshaledArgs any
+	err := json.Unmarshal(args, &unmarshaledArgs)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing args: %s", err)
+		return nil, fmt.Errorf("error unmarshaling args: %s", err)
 	}
-	var processedArgs bytes.Buffer
-	err = tmpl.Execute(&processedArgs, nil)
+	var temlErr *multierror.Error
+	processedArgs := s.recursivelyProcessStringFields(unmarshaledArgs, func(input string) string {
+		tmpl, err := tmpl.Parse(input)
+		if err != nil {
+			temlErr = multierror.Append(temlErr, fmt.Errorf("error parsing args: %s", err))
+			return input
+		}
+		var processedArgs bytes.Buffer
+		err = tmpl.Execute(&processedArgs, nil)
+		if err != nil {
+			temlErr = multierror.Append(temlErr, fmt.Errorf("error processing args: %s", err))
+			return input
+		}
+		return processedArgs.String()
+	})
+	if temlErr.ErrorOrNil() != nil {
+		return nil, temlErr
+	}
+	var marshaledProcessedArgs json.RawMessage
+	marshaledProcessedArgs, err = json.Marshal(processedArgs)
 	if err != nil {
-		return nil, fmt.Errorf("error processing args: %s", err)
+		return nil, fmt.Errorf("error marshaling processed args: %s", err)
 	}
-	return processedArgs.Bytes(), nil
+	return marshaledProcessedArgs, nil
 }
 
 func NewKeyValueStore() *KeyValueStore {
