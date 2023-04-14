@@ -27,6 +27,17 @@ func (s *KeyValueStore) Execute(args json.RawMessage) (json.RawMessage, error) {
 	if err != nil {
 		return nil, err
 	}
+	if command.Command == "" {
+		if command.Key != "" && command.Value != "" {
+			command.Command = "set"
+		}
+		if command.Key != "" && command.Value == "" {
+			command.Command = "get"
+		}
+		if command.Key == "" && command.Value == "" {
+			command.Command = "list"
+		}
+	}
 	switch command.Command {
 	case "get":
 		value, ok := s.store[command.Key]
@@ -52,7 +63,7 @@ func (s *KeyValueStore) Name() string {
 func (s *KeyValueStore) Description() string {
 	return "A place where you can store any key-value pairs " +
 		"of data. This is useful mainly for long values, which you should " +
-		"store here to save memory. To use a value you have store, " +
+		"store here to save memory. To use a value you have stored, " +
 		"reference it by Go template syntax: {{ store \"key\" }}. " +
 		"where \"key\" is the key you used to store the value. " +
 		"You can reference a saved value anywhere you want, including " +
