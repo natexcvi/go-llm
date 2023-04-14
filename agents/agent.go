@@ -12,7 +12,7 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/natexcvi/go-llm/engines"
 	"github.com/natexcvi/go-llm/memory"
-	"github.com/natexcvi/go-llm/tools"
+	toolsPkg "github.com/natexcvi/go-llm/tools"
 	"github.com/samber/lo"
 	"golang.org/x/exp/maps"
 )
@@ -54,7 +54,7 @@ func ParseChainAgentThought(thought *engines.ChatMessage) *ChainAgentThought {
 }
 
 type ChainAgentAction struct {
-	Tool tools.Tool
+	Tool toolsPkg.Tool
 	Args json.RawMessage
 }
 
@@ -62,7 +62,7 @@ func (a *ChainAgentAction) Encode() string {
 	return fmt.Sprintf(MessageFormat, ActionCode, fmt.Sprintf("%s(%s)", a.Tool.Name(), a.Tool.CompactArgs(a.Args)))
 }
 
-func ParseChainAgentAction(msg *engines.ChatMessage, tools map[string]tools.Tool) (*ChainAgentAction, error) {
+func (a *ChainAgent[T, S]) ParseChainAgentAction(msg *engines.ChatMessage) (*ChainAgentAction, error) {
 	matches := actionRegex.FindStringSubmatch(msg.Text)
 	if len(matches) != 3 {
 		return nil, fmt.Errorf("invalid action format: message must start with `%s: ` and the action call itself must match regex %q", ActionCode, actionRegex.String())
@@ -70,14 +70,23 @@ func ParseChainAgentAction(msg *engines.ChatMessage, tools map[string]tools.Tool
 	toolName := matches[actionRegex.SubexpIndex("tool")]
 	toolArgs := matches[actionRegex.SubexpIndex("args")]
 
-	tool, ok := tools[toolName]
+	tool, ok := a.Tools[toolName]
 	if !ok {
-		return nil, fmt.Errorf("tool not found. Available tools: %s", strings.Join(maps.Keys(tools), ", "))
+		return nil, fmt.Errorf("tool not found. Available tools: %s", strings.Join(maps.Keys(a.Tools), ", "))
+	}
+
+	jsonArgs := json.RawMessage(toolArgs)
+	for _, processor := range a.ActionArgPreprocessors {
+		var err error
+		jsonArgs, err = processor.Process(jsonArgs)
+		if err != nil {
+			return nil, fmt.Errorf("error while preprocessing action args: %s", err.Error())
+		}
 	}
 
 	return &ChainAgentAction{
 		Tool: tool,
-		Args: json.RawMessage(toolArgs),
+		Args: jsonArgs,
 	}, nil
 }
 
@@ -96,14 +105,15 @@ func (agent *ChainAgent[T, S]) parseChainAgentAnswer(answer *engines.ChatMessage
 }
 
 type ChainAgent[T Representable, S any] struct {
-	Engine              engines.LLM
-	Task                *Task[T, S]
-	Tools               map[string]tools.Tool
-	InputValidators     []func(T) error
-	OutputValidators    []func(S) error
-	MaxSolutionAttempts int
-	Memory              memory.Memory
-	ActionConfirmation  func(action *ChainAgentAction) bool
+	Engine                 engines.LLM
+	Task                   *Task[T, S]
+	Tools                  map[string]toolsPkg.Tool
+	InputValidators        []func(T) error
+	OutputValidators       []func(S) error
+	MaxSolutionAttempts    int
+	Memory                 memory.Memory
+	ActionConfirmation     func(action *ChainAgentAction) bool
+	ActionArgPreprocessors []toolsPkg.PreprocessingTool
 }
 
 type ChainAgentObservation struct {
@@ -160,10 +170,10 @@ func (agent *ChainAgent[T, S]) parseResponse(response *engines.ChatMessage) (nex
 		case ThoughtCode:
 			break
 		case ActionCode:
-			action, err := ParseChainAgentAction(&engines.ChatMessage{
+			action, err := agent.ParseChainAgentAction(&engines.ChatMessage{
 				Role: engines.ConvRoleAssistant,
 				Text: opContent,
-			}, agent.Tools)
+			})
 			if err != nil {
 				nextMessages = append(nextMessages, &engines.ChatMessage{
 					Role: engines.ConvRoleSystem,
@@ -263,16 +273,20 @@ func (agent *ChainAgent[T, S]) Run(input T) (output S, err error) {
 
 func NewChainAgent[T Representable, S any](engine engines.LLM, task *Task[T, S], memory memory.Memory) *ChainAgent[T, S] {
 	return &ChainAgent[T, S]{
-		Engine: engine,
-		Task:   task,
-		Tools:  map[string]tools.Tool{},
-		Memory: memory,
+		Engine:                 engine,
+		Task:                   task,
+		Tools:                  map[string]toolsPkg.Tool{},
+		Memory:                 memory,
+		ActionArgPreprocessors: []toolsPkg.PreprocessingTool{},
 	}
 }
 
-func (agent *ChainAgent[T, S]) WithTools(tools ...tools.Tool) *ChainAgent[T, S] {
+func (agent *ChainAgent[T, S]) WithTools(tools ...toolsPkg.Tool) *ChainAgent[T, S] {
 	for _, tool := range tools {
 		agent.Tools[tool.Name()] = tool
+		if preprocessor, ok := tool.(toolsPkg.PreprocessingTool); ok {
+			agent.ActionArgPreprocessors = append(agent.ActionArgPreprocessors, preprocessor)
+		}
 	}
 	return agent
 }

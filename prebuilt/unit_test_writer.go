@@ -70,7 +70,11 @@ func NewUnitTestWriter(engine engines.LLM, codeValidator func(code string) error
 	agent := agents.NewChainAgent(engine, task, memory.NewBufferedMemory(0))
 	if codeValidator != nil {
 		agent = agent.WithOutputValidators(func(utwr UnitTestWriterResponse) error {
-			return codeValidator(utwr.UnitTestFile)
+			err := codeValidator(utwr.UnitTestFile)
+			if err != nil {
+				return fmt.Errorf("Your unit test file is not valid: %s", err)
+			}
+			return nil
 		})
 	}
 	return agent, nil
