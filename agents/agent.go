@@ -273,11 +273,13 @@ func (agent *ChainAgent[T, S]) Run(input T) (output S, err error) {
 
 func NewChainAgent[T Representable, S any](engine engines.LLM, task *Task[T, S], memory memory.Memory) *ChainAgent[T, S] {
 	return &ChainAgent[T, S]{
-		Engine:                 engine,
-		Task:                   task,
-		Tools:                  map[string]toolsPkg.Tool{},
-		Memory:                 memory,
-		ActionArgPreprocessors: []toolsPkg.PreprocessingTool{},
+		Engine: engine,
+		Task:   task,
+		Tools:  map[string]toolsPkg.Tool{},
+		Memory: memory,
+		ActionArgPreprocessors: []toolsPkg.PreprocessingTool{
+			toolsPkg.NewJSONAutoFixer(engine, 3),
+		},
 	}
 }
 
