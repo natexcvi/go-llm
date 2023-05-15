@@ -74,7 +74,7 @@ func (task *Task[T, S]) enrichPromptWithExamples(prompt *engines.ChatPrompt) {
 		}
 		answerRepresentation := example.Answer.Encode()
 		prompt.History = append(prompt.History, &engines.ChatMessage{
-			Role: engines.ConvRoleSystem,
+			Role: engines.ConvRoleAssistant,
 			Text: fmt.Sprintf(MessageFormat, AnswerCode, answerRepresentation),
 		})
 	}
