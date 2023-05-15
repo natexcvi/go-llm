@@ -35,8 +35,9 @@ func (task *Task[T, S]) Compile(input T, tools map[string]tools.Tool) *engines.C
 					"You will be given input from the user in the following format:\n\n"+
 					"%s\n\n Complete the task step-by-step, "+
 					"reasoning about your solution steps by sending a message beginning "+
-					"with `%s: `.\n\nTask description: %s",
-					input.Schema(), ThoughtCode, task.Description),
+					"with `%s: `. When you are ready to return your response, "+
+					"send a message starting with `%s: `, followed by your solution.\n\nTask description: %s",
+					input.Schema(), AnswerCode, ThoughtCode, task.Description),
 			},
 		},
 	}
