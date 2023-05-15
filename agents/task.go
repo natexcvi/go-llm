@@ -27,7 +27,10 @@ type Task[T Representable, S Representable] struct {
 }
 
 func (task *Task[T, S]) Compile(input T, tools map[string]tools.Tool) *engines.ChatPrompt {
-	answerSchema := lo.If(len(task.Examples) > 0, task.Examples[0].Answer.Schema()).Else("")
+	answerSchema := lo.IfF(
+		task.Examples != nil && len(task.Examples) > 0,
+		func() string { return task.Examples[0].Answer.Schema() },
+	).Else("")
 
 	prompt := &engines.ChatPrompt{
 		History: []*engines.ChatMessage{

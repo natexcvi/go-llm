@@ -44,7 +44,7 @@ func TestPythonRepl(t *testing.T) {
 				"requests",
 				"does-not-exist",
 			},
-			expError: fmt.Errorf("python exited with code 1: ERROR: Could not find a version that satisfies the requirement does-not-exist (from versions: none)\nERROR: No matching distribution found for does-not-exist\n\n[notice] A new release of pip available: 22.3.1 -> 23.0.1\n[notice] To update, run: pip install --upgrade pip\n"),
+			expError: fmt.Errorf("python exited with code 1: ERROR: Could not find a version that satisfies the requirement does-not-exist (from versions: none)\nERROR: No matching distribution found for does-not-exist\n\n[notice] A new release of pip available: 22.3.1 -> 23.1.2\n[notice] To update, run: pip install --upgrade pip\n"),
 		},
 	}
 	for _, tc := range testCases {
