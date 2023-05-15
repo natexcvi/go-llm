@@ -159,7 +159,7 @@ func (agent *ChainAgent[T, S]) parseResponse(response *engines.ChatMessage) (nex
 	if len(ops) == 0 {
 		nextMessages = append(nextMessages, &engines.ChatMessage{
 			Role: engines.ConvRoleSystem,
-			Text: fmt.Sprintf(MessageFormat, ErrorCode, "invalid response format: must have special operations matching regex "+operationRegex.String()),
+			Text: fmt.Sprintf(MessageFormat, ErrorCode, fmt.Sprintf("your message MUST start with either `%s: `, `%s: ` or `%s: `!", ThoughtCode, ActionCode, AnswerCode)),
 		})
 		return
 	}
