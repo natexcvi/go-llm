@@ -94,8 +94,8 @@ type ChainAgentAnswer[S any] struct {
 	Content S
 }
 
-func (agent *ChainAgent[T, S]) parseChainAgentAnswer(answer *engines.ChatMessage) (*ChainAgentAnswer[S], error) {
-	output, err := agent.Task.AnswerParser(answer.Text)
+func (a *ChainAgent[T, S]) parseChainAgentAnswer(answer *engines.ChatMessage) (*ChainAgentAnswer[S], error) {
+	output, err := a.Task.AnswerParser(answer.Text)
 	if err != nil {
 		return nil, err
 	}
@@ -111,6 +111,7 @@ type ChainAgent[T Representable, S Representable] struct {
 	InputValidators        []func(T) error
 	OutputValidators       []func(S) error
 	MaxSolutionAttempts    int
+	MaxRestarts            int
 	Memory                 memory.Memory
 	ActionConfirmation     func(action *ChainAgentAction) bool
 	ActionArgPreprocessors []toolsPkg.PreprocessingTool
@@ -124,8 +125,8 @@ func (a *ChainAgentObservation) Encode() string {
 	return fmt.Sprintf(MessageFormat, ObservationCode, a.Content)
 }
 
-func (agent *ChainAgent[T, S]) executeAction(action *ChainAgentAction) (obs *engines.ChatMessage) {
-	if agent.ActionConfirmation != nil && !agent.ActionConfirmation(action) {
+func (a *ChainAgent[T, S]) executeAction(action *ChainAgentAction) (obs *engines.ChatMessage) {
+	if a.ActionConfirmation != nil && !a.ActionConfirmation(action) {
 		return &engines.ChatMessage{
 			Role: engines.ConvRoleSystem,
 			Text: fmt.Sprintf(MessageFormat, ErrorCode, "action cancelled by the user"),
@@ -146,7 +147,7 @@ func (agent *ChainAgent[T, S]) executeAction(action *ChainAgentAction) (obs *eng
 	}
 }
 
-func (agent *ChainAgent[T, S]) parseResponse(response *engines.ChatMessage) (nextMessages []*engines.ChatMessage, answer *ChainAgentAnswer[S]) {
+func (a *ChainAgent[T, S]) parseResponse(response *engines.ChatMessage) (nextMessages []*engines.ChatMessage, answer *ChainAgentAnswer[S]) {
 	var exp *regexp.Regexp
 	var ops [][]string
 	for _, candidateExp := range []*regexp.Regexp{operationRegex, operationRegexWithoutEnd} {
@@ -170,7 +171,7 @@ func (agent *ChainAgent[T, S]) parseResponse(response *engines.ChatMessage) (nex
 		case ThoughtCode:
 			break
 		case ActionCode:
-			action, err := agent.ParseChainAgentAction(&engines.ChatMessage{
+			action, err := a.ParseChainAgentAction(&engines.ChatMessage{
 				Role: engines.ConvRoleAssistant,
 				Text: opContent,
 			})
@@ -181,10 +182,10 @@ func (agent *ChainAgent[T, S]) parseResponse(response *engines.ChatMessage) (nex
 				})
 				break
 			}
-			obs := agent.executeAction(action)
+			obs := a.executeAction(action)
 			nextMessages = append(nextMessages, obs)
 		case AnswerCode:
-			answer, err := agent.parseChainAgentAnswer(&engines.ChatMessage{
+			answer, err := a.parseChainAgentAnswer(&engines.ChatMessage{
 				Role: engines.ConvRoleAssistant,
 				Text: opContent,
 			})
@@ -195,7 +196,7 @@ func (agent *ChainAgent[T, S]) parseResponse(response *engines.ChatMessage) (nex
 				})
 				break
 			}
-			err = agent.validateAnswer(answer.Content)
+			err = a.validateAnswer(answer.Content)
 			if err != nil {
 				nextMessages = append(nextMessages, &engines.ChatMessage{
 					Role: engines.ConvRoleSystem,
@@ -214,61 +215,71 @@ func (agent *ChainAgent[T, S]) parseResponse(response *engines.ChatMessage) (nex
 	return nextMessages, nil
 }
 
-func (agent *ChainAgent[T, S]) validateAnswer(answer S) error {
+func (a *ChainAgent[T, S]) validateAnswer(answer S) error {
 	var answerErr *multierror.Error
-	for _, validator := range agent.OutputValidators {
+	for _, validator := range a.OutputValidators {
 		answerErr = multierror.Append(answerErr, validator(answer))
 	}
 	return answerErr.ErrorOrNil()
 }
 
-func (agent *ChainAgent[T, S]) Run(input T) (output S, err error) {
+func (a *ChainAgent[T, S]) run(input T) (output S, err error) {
 	var inputErr *multierror.Error
-	for _, validator := range agent.InputValidators {
+	for _, validator := range a.InputValidators {
 		inputErr = multierror.Append(inputErr, validator(input))
 	}
 	if inputErr.ErrorOrNil() != nil {
 		return output, fmt.Errorf("invalid input: %w", inputErr)
 	}
-	taskPrompt := agent.Task.Compile(input, agent.Tools)
+	taskPrompt := a.Task.Compile(input, a.Tools)
 	log.Debugf("task prompt: %+v", lo.Map(taskPrompt.History, func(m *engines.ChatMessage, _ int) string { return fmt.Sprintf("%+v", m) }))
-	err = agent.Memory.AddPrompt(taskPrompt)
+	err = a.Memory.AddPrompt(taskPrompt)
 	if err != nil {
 		return output, fmt.Errorf("failed to add prompt to memory: %w", err)
 	}
-	response, err := agent.Engine.Predict(taskPrompt)
+	response, err := a.Engine.Predict(taskPrompt)
 	if err != nil {
 		return output, fmt.Errorf("failed to predict response: %w", err)
 	}
-	err = agent.Memory.Add(response)
+	err = a.Memory.Add(response)
 	if err != nil {
 		return output, fmt.Errorf("failed to add response to memory: %w", err)
 	}
 	stepsExecuted := 0
 	for {
-		nextMessages, answer := agent.parseResponse(response)
+		nextMessages, answer := a.parseResponse(response)
 		log.Debugf("next messages: %+v", lo.Map(nextMessages, func(m *engines.ChatMessage, _ int) string { return fmt.Sprintf("%+v", m) }))
 		if answer != nil {
 			return answer.Content, nil
 		}
-		prompt, err := agent.Memory.PromptWithContext(nextMessages...)
+		prompt, err := a.Memory.PromptWithContext(nextMessages...)
 		if err != nil {
 			return output, fmt.Errorf("failed to generate prompt: %w", err)
 		}
-		if agent.MaxSolutionAttempts > 0 && stepsExecuted > agent.MaxSolutionAttempts {
+		if a.MaxSolutionAttempts > 0 && stepsExecuted > a.MaxSolutionAttempts {
 			return output, errors.New("max solution attempts reached")
 		}
-		response, err = agent.Engine.Predict(prompt)
+		response, err = a.Engine.Predict(prompt)
 		if err != nil {
 			return output, fmt.Errorf("failed to predict response: %w", err)
 		}
 		log.Debugf("model response: %s", response.Text)
-		err = agent.Memory.Add(response)
+		err = a.Memory.Add(response)
 		if err != nil {
 			return output, fmt.Errorf("failed to add response to memory: %w", err)
 		}
 		stepsExecuted++
 	}
+}
+
+func (a *ChainAgent[T, S]) Run(input T) (output S, err error) {
+	for i := 0; i <= a.MaxRestarts; i++ {
+		output, err = a.run(input)
+		if err == nil {
+			return output, nil
+		}
+	}
+	return output, err
 }
 
 func NewChainAgent[T Representable, S Representable](engine engines.LLM, task *Task[T, S], memory memory.Memory) *ChainAgent[T, S] {
@@ -283,32 +294,37 @@ func NewChainAgent[T Representable, S Representable](engine engines.LLM, task *T
 	}
 }
 
-func (agent *ChainAgent[T, S]) WithTools(tools ...toolsPkg.Tool) *ChainAgent[T, S] {
+func (a *ChainAgent[T, S]) WithTools(tools ...toolsPkg.Tool) *ChainAgent[T, S] {
 	for _, tool := range tools {
-		agent.Tools[tool.Name()] = tool
+		a.Tools[tool.Name()] = tool
 		if preprocessor, ok := tool.(toolsPkg.PreprocessingTool); ok {
-			agent.ActionArgPreprocessors = append(agent.ActionArgPreprocessors, preprocessor)
+			a.ActionArgPreprocessors = append(a.ActionArgPreprocessors, preprocessor)
 		}
 	}
-	return agent
+	return a
 }
 
-func (agent *ChainAgent[T, S]) WithInputValidators(validators ...func(T) error) *ChainAgent[T, S] {
-	agent.InputValidators = append(agent.InputValidators, validators...)
-	return agent
+func (a *ChainAgent[T, S]) WithInputValidators(validators ...func(T) error) *ChainAgent[T, S] {
+	a.InputValidators = append(a.InputValidators, validators...)
+	return a
 }
 
-func (agent *ChainAgent[T, S]) WithOutputValidators(validators ...func(S) error) *ChainAgent[T, S] {
-	agent.OutputValidators = append(agent.OutputValidators, validators...)
-	return agent
+func (a *ChainAgent[T, S]) WithOutputValidators(validators ...func(S) error) *ChainAgent[T, S] {
+	a.OutputValidators = append(a.OutputValidators, validators...)
+	return a
 }
 
-func (agent *ChainAgent[T, S]) WithMaxSolutionAttempts(max int) *ChainAgent[T, S] {
-	agent.MaxSolutionAttempts = max
-	return agent
+func (a *ChainAgent[T, S]) WithMaxSolutionAttempts(max int) *ChainAgent[T, S] {
+	a.MaxSolutionAttempts = max
+	return a
 }
 
-func (agent *ChainAgent[T, S]) WithActionConfirmation(actionConfirmationProvider func(*ChainAgentAction) bool) *ChainAgent[T, S] {
-	agent.ActionConfirmation = actionConfirmationProvider
-	return agent
+func (a *ChainAgent[T, S]) WithActionConfirmation(actionConfirmationProvider func(*ChainAgentAction) bool) *ChainAgent[T, S] {
+	a.ActionConfirmation = actionConfirmationProvider
+	return a
+}
+
+func (a *ChainAgent[T, S]) WithRestarts(maxRestarts int) *ChainAgent[T, S] {
+	a.MaxRestarts = maxRestarts
+	return a
 }
