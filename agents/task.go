@@ -46,13 +46,6 @@ func (task *Task[T, S]) Compile(input T, tools map[string]tools.Tool) *engines.C
 	task.enrichPromptWithTools(tools, prompt)
 	task.enrichPromptWithExamples(prompt)
 	prompt.History = append(prompt.History, &engines.ChatMessage{
-		Role: engines.ConvRoleSystem,
-		Text: fmt.Sprintf("Now, you will be given the input. "+
-			"It's very important that every message you send begins with either "+
-			"`%s: `, `%s: `, or `%s: `, and end with `%s`.",
-			ThoughtCode, ActionCode, AnswerCode, EndMarker),
-	})
-	prompt.History = append(prompt.History, &engines.ChatMessage{
 		Role: engines.ConvRoleUser,
 		Text: input.Encode(),
 	})
