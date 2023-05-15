@@ -1,12 +1,12 @@
 package agents
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
 	"github.com/natexcvi/go-llm/engines"
 	"github.com/natexcvi/go-llm/tools"
+	"github.com/samber/lo"
 )
 
 type Representable interface {
@@ -14,19 +14,21 @@ type Representable interface {
 	Schema() string
 }
 
-type Example[T Representable, S any] struct {
+type Example[T Representable, S Representable] struct {
 	Input             T
 	IntermediarySteps []*engines.ChatMessage
 	Answer            S
 }
 
-type Task[T Representable, S any] struct {
+type Task[T Representable, S Representable] struct {
 	Description  string
 	Examples     []Example[T, S]
 	AnswerParser func(string) (S, error)
 }
 
 func (task *Task[T, S]) Compile(input T, tools map[string]tools.Tool) *engines.ChatPrompt {
+	answerSchema := lo.If(len(task.Examples) > 0, task.Examples[0].Answer.Schema()).Else("")
+
 	prompt := &engines.ChatPrompt{
 		History: []*engines.ChatMessage{
 			{
@@ -36,8 +38,8 @@ func (task *Task[T, S]) Compile(input T, tools map[string]tools.Tool) *engines.C
 					"%s\n\n Complete the task step-by-step, "+
 					"reasoning about your solution steps by sending a message beginning "+
 					"with `%s: `. When you are ready to return your response, "+
-					"send a message starting with `%s: `, followed by your solution.\n\nTask description: %s",
-					input.Schema(), ThoughtCode, AnswerCode, task.Description),
+					"send a message in format `%s: %s`, followed by your solution.\n\nTask description: %s",
+					input.Schema(), ThoughtCode, AnswerCode, answerSchema, task.Description),
 			},
 		},
 	}
@@ -70,13 +72,10 @@ func (task *Task[T, S]) enrichPromptWithExamples(prompt *engines.ChatPrompt) {
 		for _, step := range example.IntermediarySteps {
 			prompt.History = append(prompt.History, step)
 		}
-		marshalledAnswer, err := json.Marshal(example.Answer)
-		if err != nil {
-			panic(err)
-		}
+		answerRepresentation := example.Answer.Encode()
 		prompt.History = append(prompt.History, &engines.ChatMessage{
 			Role: engines.ConvRoleSystem,
-			Text: fmt.Sprintf(MessageFormat, AnswerCode, string(marshalledAnswer)),
+			Text: fmt.Sprintf(MessageFormat, AnswerCode, answerRepresentation),
 		})
 	}
 }

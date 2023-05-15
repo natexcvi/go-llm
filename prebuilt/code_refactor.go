@@ -27,6 +27,18 @@ type CodeBaseRefactorResponse struct {
 	RefactoredFiles map[string]string
 }
 
+func (resp CodeBaseRefactorResponse) Encode() string {
+	marshalled, err := json.Marshal(resp.RefactoredFiles)
+	if err != nil {
+		panic(err)
+	}
+	return string(marshalled)
+}
+
+func (resp CodeBaseRefactorResponse) Schema() string {
+	return `{"refactored_files": {"path": "description of changes"}}`
+}
+
 func NewCodeRefactorAgent(engine engines.LLM) agents.Agent[CodeBaseRefactorRequest, CodeBaseRefactorResponse] {
 	task := &agents.Task[CodeBaseRefactorRequest, CodeBaseRefactorResponse]{
 		Description: "You will be given access to a code base, and instructions for refactoring. " +

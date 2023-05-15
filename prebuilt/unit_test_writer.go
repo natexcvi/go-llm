@@ -26,6 +26,18 @@ type UnitTestWriterResponse struct {
 	UnitTestFile string `json:"unit_test_file"`
 }
 
+func (r UnitTestWriterResponse) Encode() string {
+	marshalled, err := json.Marshal(r.UnitTestFile)
+	if err != nil {
+		panic(err)
+	}
+	return string(marshalled)
+}
+
+func (r UnitTestWriterResponse) Schema() string {
+	return `{"unit_test_file": "unit test file"}`
+}
+
 func NewUnitTestWriter(engine engines.LLM, codeValidator func(code string) error) (agents.Agent[UnitTestWriterRequest, UnitTestWriterResponse], error) {
 	task := &agents.Task[UnitTestWriterRequest, UnitTestWriterResponse]{
 		Description: "You are a coding assistant that specialises in writing " +
@@ -72,7 +84,7 @@ func NewUnitTestWriter(engine engines.LLM, codeValidator func(code string) error
 		agent = agent.WithOutputValidators(func(utwr UnitTestWriterResponse) error {
 			err := codeValidator(utwr.UnitTestFile)
 			if err != nil {
-				return fmt.Errorf("Your unit test file is not valid: %s", err)
+				return fmt.Errorf("your unit test file is not valid: %s", err)
 			}
 			return nil
 		})

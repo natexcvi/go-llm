@@ -34,6 +34,18 @@ type TradeAssistantResponse struct {
 	Recommendations map[string]Recommendation
 }
 
+func (r TradeAssistantResponse) Encode() string {
+	marshalled, err := json.Marshal(r.Recommendations)
+	if err != nil {
+		panic(err)
+	}
+	return string(marshalled)
+}
+
+func (r TradeAssistantResponse) Schema() string {
+	return `{"recommendations": {"ticker": "buy/sell/hold"}}`
+}
+
 func NewTradeAssistantAgent(engine engines.LLM, wolframAlphaAppID string) agents.Agent[TradeAssistantRequest, TradeAssistantResponse] {
 	task := &agents.Task[TradeAssistantRequest, TradeAssistantResponse]{
 		Description: "You will be given a list of stocks. " +
