@@ -3,6 +3,7 @@ package tools
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/natexcvi/go-llm/engines"
@@ -49,6 +50,14 @@ func (t *JSONAutoFixer) validateJSON(raw string) error {
 	return nil
 }
 
+func (t *JSONAutoFixer) extractJSONFromResponse(response string) string {
+	wrappedJSONRegex := regexp.MustCompile(`\x60\x60\x60(?:json)?\s(?P<json>[\s\S]+)\s\x60\x60\x60`)
+	if wrappedJSONRegex.MatchString(response) {
+		return wrappedJSONRegex.FindStringSubmatch(response)[1]
+	}
+	return response
+}
+
 func (t *JSONAutoFixer) Process(args json.RawMessage) (json.RawMessage, error) {
 	if err := t.validateJSON(string(args)); err == nil {
 		return args, nil
@@ -60,11 +69,12 @@ func (t *JSONAutoFixer) Process(args json.RawMessage) (json.RawMessage, error) {
 		if err != nil {
 			return nil, fmt.Errorf("error running JSON auto fixer: %w", err)
 		}
-		if err := t.validateJSON(resp.Text); err != nil {
+		respJSON := t.extractJSONFromResponse(resp.Text)
+		if err := t.validateJSON(respJSON); err != nil {
 			cumErr = multierror.Append(cumErr, fmt.Errorf("invalid JSON returned by JSON auto fixer: %w", err))
 			continue
 		}
-		return json.RawMessage(resp.Text), nil
+		return json.RawMessage(respJSON), nil
 	}
 	return nil, multierror.Append(cumErr, ErrMaxRetriesExceeded)
 }

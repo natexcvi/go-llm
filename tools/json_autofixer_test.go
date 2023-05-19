@@ -38,6 +38,32 @@ func TestJSONAutoFixer_Process(t *testing.T) {
 			},
 		},
 		{
+			name:           "Error JSON wrapped response",
+			maxRetries:     1,
+			raw:            `{"foo":"bar"`,
+			expectedErr:    nil,
+			expectedOutput: `{"foo": "bar"}`,
+			modelResponses: []string{
+				"Here if your fixed JSON payload:" +
+					"\x60\x60\x60json\n" +
+					`{"foo": "bar"}` +
+					"\n\x60\x60\x60",
+			},
+		},
+		{
+			name:           "Error JSON wrapped response (just backtics)",
+			maxRetries:     1,
+			raw:            `{"foo":"bar"`,
+			expectedErr:    nil,
+			expectedOutput: `{"foo": "bar"}`,
+			modelResponses: []string{
+				"Here if your fixed JSON payload:" +
+					"\x60\x60\x60\n" +
+					`{"foo": "bar"}` +
+					"\n\x60\x60\x60",
+			},
+		},
+		{
 			name:           "Error JSON with max retries",
 			maxRetries:     2,
 			raw:            `{"foo":"bar"`,
