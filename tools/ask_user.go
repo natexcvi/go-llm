@@ -52,7 +52,8 @@ func (b *AskUser) Name() string {
 }
 
 func (b *AskUser) Description() string {
-	return "A tool for asking the user a question."
+	return "A tool for asking the user a question. Use this tool " +
+		"if you need any kind of input or help from the user."
 }
 
 func (b *AskUser) ArgsSchema() json.RawMessage {
