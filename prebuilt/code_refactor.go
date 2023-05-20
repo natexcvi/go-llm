@@ -126,6 +126,7 @@ func NewCodeRefactorAgent(engine engines.LLM) agents.Agent[CodeBaseRefactorReque
 	agent := agents.NewChainAgent(engine, task, memory.NewBufferedMemory(10)).WithMaxSolutionAttempts(12).WithTools(
 		tools.NewPythonREPL(),
 		tools.NewBashTerminal(),
+		tools.NewAskUser(),
 		agents.NewGenericAgentTool(engine, []tools.Tool{tools.NewBashTerminal(), tools.NewPythonREPL()}),
 	)
 	return agent
