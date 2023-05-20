@@ -71,7 +71,7 @@ func (a *ChainAgent[T, S]) ParseChainAgentAction(msg *engines.ChatMessage) (*Cha
 
 	tool, ok := a.Tools[toolName]
 	if !ok {
-		return nil, fmt.Errorf("tool not found. Available tools: %s", strings.Join(maps.Keys(a.Tools), ", "))
+		return nil, fmt.Errorf("tool %q not found. Available tools: %s", toolName, strings.Join(maps.Keys(a.Tools), ", "))
 	}
 
 	jsonArgs := json.RawMessage(toolArgs)
