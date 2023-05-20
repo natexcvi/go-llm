@@ -267,7 +267,7 @@ func (a *ChainAgent[T, S]) run(input T) (output S, err error) {
 		if err != nil {
 			return output, fmt.Errorf("failed to predict response: %w", err)
 		}
-		log.Debugf("model response: %s", response.Text)
+		a.logMessages(response)
 		err = a.Memory.Add(response)
 		if err != nil {
 			return output, fmt.Errorf("failed to add response to memory: %w", err)
