@@ -24,7 +24,7 @@ func (req CodeBaseRefactorRequest) Schema() string {
 }
 
 type CodeBaseRefactorResponse struct {
-	RefactoredFiles map[string]string
+	RefactoredFiles map[string]string `json:"refactored_files"`
 }
 
 func (resp CodeBaseRefactorResponse) Encode() string {
@@ -111,12 +111,22 @@ func NewCodeRefactorAgent(engine engines.LLM) agents.Agent[CodeBaseRefactorReque
 		},
 		AnswerParser: func(msg string) (CodeBaseRefactorResponse, error) {
 			var res CodeBaseRefactorResponse
-			if err := json.Unmarshal([]byte(msg), &res); err != nil {
-				return CodeBaseRefactorResponse{}, err
+			if err := json.Unmarshal([]byte(msg), &res); err == nil && res.RefactoredFiles != nil {
+				return res, nil
 			}
-			return res, nil
+			var rawRes map[string]string
+			if err := json.Unmarshal([]byte(msg), &rawRes); err != nil {
+				return CodeBaseRefactorResponse{}, fmt.Errorf("invalid response: %s", err.Error())
+			}
+			return CodeBaseRefactorResponse{
+				RefactoredFiles: rawRes,
+			}, nil
 		},
 	}
-	agent := agents.NewChainAgent(engine, task, memory.NewSummarisedMemory(3, engine)).WithMaxSolutionAttempts(12).WithTools(tools.NewPythonREPL(), tools.NewBashTerminal())
+	agent := agents.NewChainAgent(engine, task, memory.NewBufferedMemory(10)).WithMaxSolutionAttempts(12).WithTools(
+		tools.NewPythonREPL(),
+		tools.NewBashTerminal(),
+		agents.NewGenericAgentTool(engine, []tools.Tool{tools.NewBashTerminal(), tools.NewPythonREPL()}),
+	)
 	return agent
 }

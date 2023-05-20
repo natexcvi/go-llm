@@ -6,6 +6,7 @@ import (
 	"go/token"
 	"io"
 	"os"
+	"regexp"
 
 	"github.com/natexcvi/go-llm/engines"
 	"github.com/natexcvi/go-llm/prebuilt"
@@ -37,14 +38,18 @@ func main() {
 	log.Debug("session started")
 	engine := engines.NewGPTEngine(os.Getenv("OPENAI_TOKEN"), "gpt-3.5-turbo")
 	agent, err := prebuilt.NewUnitTestWriter(engine, func(code string) error {
+		wrappedCodeRegex := regexp.MustCompile(`\x60\x60\x60(?:go)?\s*([^\x60]+)\s*\x60\x60\x60`)
+		if wrappedCodeRegex.MatchString(code) {
+			code = wrappedCodeRegex.FindStringSubmatch(code)[1]
+		}
 		fset := token.NewFileSet()
 		file, err := parser.ParseFile(fset, "", code, parser.AllErrors)
 		if err != nil {
-			return err
+			return nil
 		}
 		_, err = ast.NewPackage(fset, map[string]*ast.File{"": file}, nil, nil)
 		if err != nil {
-			return err
+			return nil
 		}
 		return nil
 	})
@@ -53,7 +58,7 @@ func main() {
 		return
 	}
 	res, err := agent.Run(prebuilt.UnitTestWriterRequest{
-		SourceFile:  readFile("tools/key_value_store.go"),
+		SourceFile:  readFile("agents/agent_tool.go"),
 		ExampleFile: readFile("tools/bash_test.go"),
 	})
 	if err != nil {
@@ -61,7 +66,7 @@ func main() {
 		return
 	}
 	log.Info(res)
-	err = os.WriteFile("tools/key_value_store_test.go", []byte(res.UnitTestFile), 0644)
+	err = os.WriteFile("agents/agent_tool_test.go", []byte(res.UnitTestFile), 0644)
 	if err != nil {
 		log.Error(err)
 		return

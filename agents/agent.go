@@ -13,7 +13,6 @@ import (
 	"github.com/natexcvi/go-llm/engines"
 	"github.com/natexcvi/go-llm/memory"
 	toolsPkg "github.com/natexcvi/go-llm/tools"
-	"github.com/samber/lo"
 	"golang.org/x/exp/maps"
 )
 
@@ -134,13 +133,11 @@ func (a *ChainAgent[T, S]) executeAction(action *ChainAgentAction) (obs *engines
 	}
 	actionOutput, err := action.Tool.Execute(action.Args)
 	if err != nil {
-		log.Debugf("action error: %s", err.Error())
 		return &engines.ChatMessage{
 			Role: engines.ConvRoleSystem,
 			Text: fmt.Sprintf(MessageFormat, ErrorCode, err.Error()),
 		}
 	}
-	log.Debugf("action output: %s", actionOutput)
 	return &engines.ChatMessage{
 		Role: engines.ConvRoleSystem,
 		Text: fmt.Sprintf(MessageFormat, ObservationCode, actionOutput),
@@ -223,6 +220,12 @@ func (a *ChainAgent[T, S]) validateAnswer(answer S) error {
 	return answerErr.ErrorOrNil()
 }
 
+func (a *ChainAgent[T, S]) logMessages(msg ...*engines.ChatMessage) {
+	for _, m := range msg {
+		log.Debugf("[%s] %s", m.Role, m.Text)
+	}
+}
+
 func (a *ChainAgent[T, S]) run(input T) (output S, err error) {
 	var inputErr *multierror.Error
 	for _, validator := range a.InputValidators {
@@ -232,7 +235,7 @@ func (a *ChainAgent[T, S]) run(input T) (output S, err error) {
 		return output, fmt.Errorf("invalid input: %w", inputErr)
 	}
 	taskPrompt := a.Task.Compile(input, a.Tools)
-	log.Debugf("task prompt: %+v", lo.Map(taskPrompt.History, func(m *engines.ChatMessage, _ int) string { return fmt.Sprintf("%+v", m) }))
+	a.logMessages(taskPrompt.History...)
 	err = a.Memory.AddPrompt(taskPrompt)
 	if err != nil {
 		return output, fmt.Errorf("failed to add prompt to memory: %w", err)
@@ -241,6 +244,7 @@ func (a *ChainAgent[T, S]) run(input T) (output S, err error) {
 	if err != nil {
 		return output, fmt.Errorf("failed to predict response: %w", err)
 	}
+	a.logMessages(response)
 	err = a.Memory.Add(response)
 	if err != nil {
 		return output, fmt.Errorf("failed to add response to memory: %w", err)
@@ -248,7 +252,7 @@ func (a *ChainAgent[T, S]) run(input T) (output S, err error) {
 	stepsExecuted := 0
 	for {
 		nextMessages, answer := a.parseResponse(response)
-		log.Debugf("next messages: %+v", lo.Map(nextMessages, func(m *engines.ChatMessage, _ int) string { return fmt.Sprintf("%+v", m) }))
+		a.logMessages(nextMessages...)
 		if answer != nil {
 			return answer.Content, nil
 		}
