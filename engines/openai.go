@@ -86,7 +86,7 @@ func (gpt *GPT) parseResponseBody(body io.Reader) (*ChatMessage, error) {
 	return response.Choices[0].Message, nil
 }
 
-func NewGPTEngine(apiToken string, model string) LLM {
+func NewGPTEngine(apiToken string, model string) *GPT {
 	return &GPT{
 		APIToken: apiToken,
 		Model:    model,
