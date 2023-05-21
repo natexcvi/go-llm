@@ -7,6 +7,7 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/natexcvi/go-llm/engines"
+	log "github.com/sirupsen/logrus"
 )
 
 var ErrMaxRetriesExceeded = fmt.Errorf("max retries exceeded")
@@ -62,6 +63,7 @@ func (t *JSONAutoFixer) Process(args json.RawMessage) (json.RawMessage, error) {
 	if err := t.validateJSON(string(args)); err == nil {
 		return args, nil
 	}
+	log.Debugf("Running JSON fixer")
 	prompt := t.prompt(args)
 	var cumErr *multierror.Error
 	for i := 0; i < t.maxRetries; i++ {
@@ -74,6 +76,8 @@ func (t *JSONAutoFixer) Process(args json.RawMessage) (json.RawMessage, error) {
 			cumErr = multierror.Append(cumErr, fmt.Errorf("invalid JSON returned by JSON auto fixer: %w", err))
 			continue
 		}
+		log.Debugf("JSON auto fixer succeeded after %d retries", i+1)
+		log.Debugf("Fixed JSON payload: %s", respJSON)
 		return json.RawMessage(respJSON), nil
 	}
 	return nil, multierror.Append(cumErr, ErrMaxRetriesExceeded)

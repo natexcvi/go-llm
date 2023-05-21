@@ -34,6 +34,7 @@ func (wa *WolframAlpha) shortAnswer(query string) (answer string, err error) {
 	q := req.URL.Query()
 	q.Add("appid", wa.AppID)
 	q.Add("i", query)
+	q.Add("timeout", "10")
 	req.URL.RawQuery = q.Encode()
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {

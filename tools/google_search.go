@@ -71,7 +71,8 @@ func (ws *WebSearch) search(query string) (searchResults []SearchResult, err err
 
 	// Launch a new Chromium browser context
 	browser, err := pw.Chromium.Launch(playwright.BrowserTypeLaunchOptions{
-		SlowMo: playwright.Float(100),
+		SlowMo:   playwright.Float(100),
+		Headless: playwright.Bool(true),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("could not launch browser: %v", err)
@@ -89,7 +90,19 @@ func (ws *WebSearch) search(query string) (searchResults []SearchResult, err err
 	if _, err := page.Goto(ws.ServiceURL); err != nil {
 		return nil, fmt.Errorf("could not navigate to google: %v", err)
 	}
-	if err := page.Fill("input[name=\"q\"]", query); err != nil {
+	// If the page has a dialog, dismiss it
+	acceptAllBtns, err := page.Locator("button:has-text(\"Accept all\")")
+	if err == nil {
+		btn, err := acceptAllBtns.First()
+		if err == nil {
+			btn.Click()
+		}
+	}
+	searchBox, err := page.Locator("input[name=\"q\"],textarea[name=\"q\"]")
+	if err != nil {
+		return nil, fmt.Errorf("could not find search input: %v", err)
+	}
+	if err := searchBox.Fill(query); err != nil {
 		return nil, fmt.Errorf("could not fill search input: %v", err)
 	}
 	if err := page.Keyboard().Press("Enter"); err != nil {

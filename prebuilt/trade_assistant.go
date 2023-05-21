@@ -85,6 +85,15 @@ func NewTradeAssistantAgent(engine engines.LLM, wolframAlphaAppID string) agents
 				},
 			},
 		},
+		AnswerParser: func(text string) (TradeAssistantResponse, error) {
+			var recommendations map[string]Recommendation
+			if err := json.Unmarshal([]byte(text), &recommendations); err != nil {
+				return TradeAssistantResponse{}, err
+			}
+			return TradeAssistantResponse{
+				Recommendations: recommendations,
+			}, nil
+		},
 	}
 	return agents.NewChainAgent(engine, task, memory.NewSummarisedMemory(3, engine)).WithMaxSolutionAttempts(12).WithTools(
 		tools.NewGoogleSearch(),
