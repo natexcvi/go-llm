@@ -203,10 +203,7 @@ func (a *ChainAgent[T, S]) parseResponse(response *engines.ChatMessage) (nextMes
 			}
 			return nextMessages, answer
 		default:
-			nextMessages = append(nextMessages, &engines.ChatMessage{
-				Role: engines.ConvRoleSystem,
-				Text: fmt.Sprintf(MessageFormat, ErrorCode, "invalid response: must begin with `THT`, `ACT`, or `ANS`."),
-			})
+			break // consider the message a thought
 		}
 	}
 	return nextMessages, nil

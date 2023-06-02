@@ -40,11 +40,11 @@ func (task *Task[T, S]) Compile(input T, tools map[string]tools.Tool) *engines.C
 					"You will be given input from the user in the following format:\n\n"+
 					"%s\n\n Complete the task step-by-step, "+
 					"reasoning about your solution steps by sending a message beginning "+
-					"with `%s: `. When you are ready to return your response, "+
-					"send a message in format `%s: %s`. Remember: you are on your own - "+
+					"with `%s: ` and ending with `%s`. When you are ready to return your response, "+
+					"send a message in format `%s: (your answer)%s%s`. Remember: you are on your own - "+
 					"do not ask for any clarifications, except by using appropriate tools "+
 					"for interacting with the user.",
-					input.Schema(), ThoughtCode, AnswerCode, answerSchema),
+					input.Schema(), ThoughtCode, EndMarker, AnswerCode, EndMarker, answerSchema),
 			},
 		},
 	}
@@ -92,12 +92,12 @@ func (*Task[T, S]) enrichPromptWithTools(tools map[string]tools.Tool, prompt *en
 	prompt.History = append(prompt.History, &engines.ChatMessage{
 		Role: engines.ConvRoleSystem,
 		Text: fmt.Sprintf("Here are some tools you can use. To use a tool, "+
-			"send a message in the form of `%s: tool_name(args)`, "+
+			"send a message in the form of `%s: tool_name(args)%s`, "+
 			"where `args` is a valid one-line JSON representation of the arguments"+
-			" to the tool, as specified for it (using JSON schema). You will get "+
+			" to the tool, as specified for it. You will get "+
 			"the output in "+
 			"a message beginning with `%s: `, or an error message beginning "+
 			"with `%s: `.\n\nTools:\n%s",
-			ActionCode, ObservationCode, ErrorCode, strings.Join(toolsList, "\n")),
+			ActionCode, EndMarker, ObservationCode, ErrorCode, strings.Join(toolsList, "\n")),
 	})
 }
