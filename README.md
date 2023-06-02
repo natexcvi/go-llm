@@ -118,6 +118,8 @@ Currently available tools are:
 - `WebpageSummary` - an LLM-based tool that allows agents to get a summary of a webpage.
 - `WolframAlpha` - a tool that allows agents to query WolframAlpha's short answer API.
 
+**IMPORTANT NOTE:** the `BashTerminal` and regular `PythonREPL` tools let the agent run arbitrary commands on your machine, use at your own risk.
+
 ### Memory
 A memory system that allows agents to store and retrieve information.
 Currently available memory systems are:
