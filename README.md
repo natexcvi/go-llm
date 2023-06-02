@@ -122,7 +122,8 @@ Currently available tools are:
 - `JSONAutoFixer` - a meta tool that is enabled by default. When the arguments to any tool are provided in a form that is not valid JSON, this tool attempts to fix the payload using a separate LLM chain.
 - `GenericAgentTool` - lets an agent run another agent, with pre-determined tools, dynamically providing it with its task and input and collecting its final answer.
 
-**IMPORTANT NOTE:** the `BashTerminal` and regular `PythonREPL` tools let the agent run arbitrary commands on your machine, use at your own risk.
+> **Warning**
+> The `BashTerminal` and regular `PythonREPL` tools let the agent run arbitrary commands on your machine, use at your own risk.
 
 ### Memory
 A memory system that allows agents to store and retrieve information.
