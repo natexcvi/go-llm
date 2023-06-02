@@ -155,11 +155,7 @@ func (a *ChainAgent[T, S]) parseResponse(response *engines.ChatMessage) (nextMes
 		}
 	}
 	if len(ops) == 0 {
-		nextMessages = append(nextMessages, &engines.ChatMessage{
-			Role: engines.ConvRoleSystem,
-			Text: fmt.Sprintf(MessageFormat, ErrorCode, fmt.Sprintf("your message MUST start with either `%s: `, `%s: ` or `%s: `!", ThoughtCode, ActionCode, AnswerCode)),
-		})
-		return
+		return // consider the message a thought anyway
 	}
 	for _, op := range ops {
 		opCode := op[exp.SubexpIndex("code")]

@@ -74,7 +74,7 @@ func (ga *GenericAgentTool) Execute(args json.RawMessage) (json.RawMessage, erro
 	if err != nil {
 		return nil, fmt.Errorf("error running agent: %s", err.Error())
 	}
-	return json.Marshal(response)
+	return json.Marshal(response.output)
 }
 
 func (ga *GenericAgentTool) ArgsSchema() json.RawMessage {
