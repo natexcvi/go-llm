@@ -64,8 +64,8 @@ func NewCodeRefactorAgent(engine engines.LLM) agents.Agent[CodeBaseRefactorReque
 					{
 						Role: engines.ConvRoleAssistant,
 						Text: (&agents.ChainAgentAction{
-							Tool: tools.NewBashTerminal(),
-							Args: json.RawMessage(`{"command": "ls /Users/nate/code/base"}`),
+							Tool: agents.NewGenericAgentTool(nil, nil),
+							Args: json.RawMessage(`{"task": "scan code base for functions that might error", "input": "/Users/nate/code/base"}`),
 						}).Encode(),
 					},
 					{
@@ -77,33 +77,20 @@ func NewCodeRefactorAgent(engine engines.LLM) agents.Agent[CodeBaseRefactorReque
 					{
 						Role: engines.ConvRoleAssistant,
 						Text: (&agents.ChainAgentThought{
-							Content: "Now I should read the code file.",
+							Content: "Now I should handle each function that might error.",
 						}).Encode(),
 					},
 					{
 						Role: engines.ConvRoleAssistant,
 						Text: (&agents.ChainAgentAction{
-							Tool: tools.NewBashTerminal(),
-							Args: json.RawMessage(`{"command": "cat /Users/nate/code/base/main.py"}`),
+							Tool: agents.NewGenericAgentTool(nil, nil),
+							Args: json.RawMessage(`{"task": "fix any function that has unhandled exceptions in the file you will be given.", "input": "/Users/nate/code/base/main.py"}`),
 						}).Encode(),
 					},
 					{
 						Role: engines.ConvRoleSystem,
 						Text: (&agents.ChainAgentObservation{
-							Content: "def main():\n\tfunc_that_might_error()",
-						}).Encode(),
-					},
-					{
-						Role: engines.ConvRoleAssistant,
-						Text: (&agents.ChainAgentThought{
-							Content: "I should refactor the code to handle errors gracefully.",
-						}).Encode(),
-					},
-					{
-						Role: engines.ConvRoleAssistant,
-						Text: (&agents.ChainAgentAction{
-							Tool: tools.NewBashTerminal(),
-							Args: json.RawMessage(`{"command": "echo 'def main():\n\ttry:\n\t\tfunc_that_might_error()\n\texcept Exception as e:\n\t\tprint(\"Error: %s\", e)' > /Users/nate/code/base/main.py"}`),
+							Content: "Okay, I've fixed the errors in main.py by wrapping a block with try/except.",
 						}).Encode(),
 					},
 				},
