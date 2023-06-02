@@ -104,6 +104,7 @@ func main() {
 }
 ```
 > **Note**
+> 
 > Fun fact: the `tools/bash_test.go` file was written by this very agent, and helped find a bug!
 
 ## Components
@@ -124,6 +125,7 @@ Currently available tools are:
 - `GenericAgentTool` - lets an agent run another agent, with pre-determined tools, dynamically providing it with its task and input and collecting its final answer.
 
 > **Warning**
+> 
 > The `BashTerminal` and regular `PythonREPL` tools let the agent run arbitrary commands on your machine, use at your own risk.
 
 ### Memory
