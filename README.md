@@ -117,6 +117,10 @@ Currently available tools are:
 - `GoogleSearch` - a tool that allows agents to search Google.
 - `WebpageSummary` - an LLM-based tool that allows agents to get a summary of a webpage.
 - `WolframAlpha` - a tool that allows agents to query WolframAlpha's short answer API.
+- `KeyValueStore` - a tool for storing and retrieving information. The agent can use this tool to re-use long pieces of information by-reference, removing duplication and therefore reducing context size.
+- `AskUser` - an interactivity tool that lets the agent ask a human operator for clarifications when needed.
+- `JSONAutoFixer` - a meta tool that is enabled by default. When the arguments to any tool are provided in a form that is not valid JSON, this tool attempts to fix the payload using a separate LLM chain.
+- `GenericAgentTool` - lets an agent run another agent, with pre-determined tools, dynamically providing it with its task and input and collecting its final answer.
 
 **IMPORTANT NOTE:** the `BashTerminal` and regular `PythonREPL` tools let the agent run arbitrary commands on your machine, use at your own risk.
 
