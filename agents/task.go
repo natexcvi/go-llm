@@ -56,6 +56,9 @@ func (task *Task[T, S]) Compile(input T, tools map[string]tools.Tool) *engines.C
 }
 
 func (task *Task[T, S]) enrichPromptWithExamples(prompt *engines.ChatPrompt) {
+	if len(task.Examples) == 0 {
+		return
+	}
 	prompt.History = append(prompt.History, &engines.ChatMessage{
 		Role: engines.ConvRoleSystem,
 		Text: "Here are some examples of how you might solve this task:",
@@ -77,21 +80,22 @@ func (task *Task[T, S]) enrichPromptWithExamples(prompt *engines.ChatPrompt) {
 }
 
 func (*Task[T, S]) enrichPromptWithTools(tools map[string]tools.Tool, prompt *engines.ChatPrompt) {
-	if len(tools) > 0 {
-		toolsList := make([]string, 0, len(tools))
-		for name, tool := range tools {
-			toolsList = append(toolsList, fmt.Sprintf("%s(%s) # %s", name, tool.ArgsSchema(), tool.Description()))
-		}
-		prompt.History = append(prompt.History, &engines.ChatMessage{
-			Role: engines.ConvRoleSystem,
-			Text: fmt.Sprintf("Here are some tools you can use. To use a tool, "+
-				"send a message in the form of `%s: tool_name(args)`, "+
-				"where `args` is a valid one-line JSON representation of the arguments"+
-				" to the tool, as specified for it (using JSON schema). You will get "+
-				"the output in "+
-				"a message beginning with `%s: `, or an error message beginning "+
-				"with `%s: `.\n\nTools:\n%s",
-				ActionCode, ObservationCode, ErrorCode, strings.Join(toolsList, "\n")),
-		})
+	if len(tools) < 0 {
+		return
 	}
+	toolsList := make([]string, 0, len(tools))
+	for name, tool := range tools {
+		toolsList = append(toolsList, fmt.Sprintf("%s(%s) # %s", name, tool.ArgsSchema(), tool.Description()))
+	}
+	prompt.History = append(prompt.History, &engines.ChatMessage{
+		Role: engines.ConvRoleSystem,
+		Text: fmt.Sprintf("Here are some tools you can use. To use a tool, "+
+			"send a message in the form of `%s: tool_name(args)`, "+
+			"where `args` is a valid one-line JSON representation of the arguments"+
+			" to the tool, as specified for it (using JSON schema). You will get "+
+			"the output in "+
+			"a message beginning with `%s: `, or an error message beginning "+
+			"with `%s: `.\n\nTools:\n%s",
+			ActionCode, ObservationCode, ErrorCode, strings.Join(toolsList, "\n")),
+	})
 }
