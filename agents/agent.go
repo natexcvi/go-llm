@@ -23,7 +23,7 @@ const (
 	ErrorCode       = "ERR"
 	ObservationCode = "OBS"
 	EndMarker       = "<END>"
-	MessageFormat   = "%s: %s"
+	MessageFormat   = "%s: %s<END>"
 	MessagePrefix   = "%s: "
 )
 

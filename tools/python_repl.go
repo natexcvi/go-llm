@@ -69,7 +69,7 @@ func (p *PythonREPL) Name() string {
 }
 
 func (p *PythonREPL) Description() string {
-	return "A Python REPL. Use this to execute scripts that help you complete your task." +
+	return "A Python REPL. Use this to execute scripts that help you complete your task. " +
 		"If you need to install any modules, you can do so by passing a list of modules to the modules argument."
 }
 

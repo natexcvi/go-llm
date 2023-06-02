@@ -41,8 +41,10 @@ func (task *Task[T, S]) Compile(input T, tools map[string]tools.Tool) *engines.C
 					"%s\n\n Complete the task step-by-step, "+
 					"reasoning about your solution steps by sending a message beginning "+
 					"with `%s: `. When you are ready to return your response, "+
-					"send a message in format `%s: %s`.\n\nTask description: %s",
-					input.Schema(), ThoughtCode, AnswerCode, answerSchema, task.Description),
+					"send a message in format `%s: %s`. Remember: you are on your own - "+
+					"do not ask for any clarifications, except by using appropriate tools "+
+					"for interacting with the user.",
+					input.Schema(), ThoughtCode, AnswerCode, answerSchema),
 			},
 		},
 	}
@@ -50,7 +52,7 @@ func (task *Task[T, S]) Compile(input T, tools map[string]tools.Tool) *engines.C
 	task.enrichPromptWithExamples(prompt)
 	prompt.History = append(prompt.History, &engines.ChatMessage{
 		Role: engines.ConvRoleUser,
-		Text: input.Encode(),
+		Text: fmt.Sprintf("Task:\n%s\n\nInput:\n%s", task.Description, input.Encode()),
 	})
 	return prompt
 }
