@@ -42,8 +42,8 @@ func TestPythonREPL(t *testing.T) {
 			name: "with modules",
 			repl: NewPythonREPL(),
 			input: json.RawMessage(`{
-				"code": "import requests\nprint([1,2,3])",
-				"modules": ["requests"]
+				"code": "import dotenv\ndotenv.load_dotenv()\nprint([1,2,3])",
+				"modules": ["python-dotenv"]
 			}`),
 			output: json.RawMessage(`[1,2,3]`),
 		},
