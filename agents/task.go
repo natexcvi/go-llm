@@ -82,7 +82,7 @@ func (task *Task[T, S]) enrichPromptWithExamples(prompt *engines.ChatPrompt) {
 }
 
 func (*Task[T, S]) enrichPromptWithTools(tools map[string]tools.Tool, prompt *engines.ChatPrompt) {
-	if len(tools) < 0 {
+	if len(tools) == 0 {
 		return
 	}
 	toolsList := make([]string, 0, len(tools))
