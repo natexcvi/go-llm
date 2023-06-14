@@ -23,12 +23,28 @@ type CodeBaseRefactorRequest struct {
 	Goal string
 }
 
-func (req CodeBaseRefactorRequest) MarshalJSON() ([]byte, error) {
-	return []byte(fmt.Sprintf(`{"dir": "%s", "goal": "%s"}`, req.Dir, req.Goal)), nil
+func (req CodeBaseRefactorRequest) Encode() string {
+	return fmt.Sprintf(`{"dir": "%s", "goal": "%s"}`, req.Dir, req.Goal)
+}
+
+func (req CodeBaseRefactorRequest) Schema() string {
+	return `{"dir": "path to code base", "goal": "refactoring goal"}`
 }
 
 type CodeBaseRefactorResponse struct {
-	RefactoredFiles map[string]string
+	RefactoredFiles map[string]string `json:"refactored_files"`
+}
+
+func (resp CodeBaseRefactorResponse) Encode() string {
+	marshalled, err := json.Marshal(resp.RefactoredFiles)
+	if err != nil {
+		panic(err)
+	}
+	return string(marshalled)
+}
+
+func (resp CodeBaseRefactorResponse) Schema() string {
+	return `{"refactored_files": {"path": "description of changes"}}`
 }
 
 func main() {
