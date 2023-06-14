@@ -178,7 +178,12 @@ func TestChainAgent(t *testing.T) {
 						"echoes the input",
 						json.RawMessage(`{"msg": "the string to echo"}`),
 						func(args json.RawMessage) (json.RawMessage, error) {
-							return args, nil
+							var parsedArgs struct {
+								Msg string `json:"msg"`
+							}
+							err := json.Unmarshal(args, &parsedArgs)
+							require.NoError(t, err)
+							return json.Marshal(parsedArgs.Msg)
 						},
 					),
 				},
