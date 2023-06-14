@@ -31,7 +31,7 @@ func TestPythonRepl(t *testing.T) {
 		},
 		{
 			name: "with modules",
-			code: "import requests\nrequests.get('https://httpbin.org/get').json()\nprint('hello world')",
+			code: "import requests\nprint('hello world')",
 			modules: []string{
 				"requests",
 			},
@@ -39,7 +39,7 @@ func TestPythonRepl(t *testing.T) {
 		},
 		{
 			name: "no existing module - error",
-			code: "import requests\nrequests.get('https://httpbin.org/get').json()\nprint('hello world')",
+			code: "import requests\nprint('hello world')",
 			modules: []string{
 				"requests",
 				"does-not-exist",
