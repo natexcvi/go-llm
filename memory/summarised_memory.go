@@ -60,13 +60,20 @@ func (memory *SummarisedMemory) updateMemoryState(msg ...*engines.ChatMessage) e
 		Text: "Please update the memory state to reflect the new messages. " +
 			"Do not forget to give proper weight to the current memory state.",
 	})
-	updatedMemState, err := memory.model.Predict(&prompt)
+	updatedMemState, err := memory.predict(&prompt)
 	if err != nil {
 		return fmt.Errorf("failed to update memory state: %w", err)
 	}
 	memory.memoryState = updatedMemState.Text
 	log.Debugf("Updated memory state: %s", memory.memoryState)
 	return nil
+}
+
+func (memory *SummarisedMemory) predict(prompt *engines.ChatPrompt) (*engines.ChatMessage, error) {
+	if model, ok := memory.model.(engines.LLMWithFunctionCalls); ok {
+		return model.PredictWithoutFunctions(prompt)
+	}
+	return memory.model.Predict(prompt)
 }
 
 func (memory *SummarisedMemory) Add(msg *engines.ChatMessage) error {

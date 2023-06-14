@@ -8,6 +8,7 @@ type LLM interface {
 type LLMWithFunctionCalls interface {
 	LLM
 	SetFunctions(funcs ...FunctionSpecs)
+	PredictWithoutFunctions(prompt *ChatPrompt) (*ChatMessage, error)
 }
 
 type ParameterSpecs struct {
