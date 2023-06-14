@@ -3,6 +3,8 @@
 
 Integrate the power of large language models (LLM) into your Go application.
 
+🆕 Support for just-introduced OpenAI's function call interface, see below.
+
 ## Usage Example
 ```go
 package main
