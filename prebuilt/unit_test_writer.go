@@ -7,7 +7,6 @@ import (
 	"github.com/natexcvi/go-llm/agents"
 	"github.com/natexcvi/go-llm/engines"
 	"github.com/natexcvi/go-llm/memory"
-	"github.com/natexcvi/go-llm/tools"
 )
 
 type UnitTestWriterRequest struct {
@@ -86,7 +85,7 @@ func NewUnitTestWriter(engine engines.LLM, codeValidator func(code string) error
 			}, nil
 		},
 	}
-	agent := agents.NewChainAgent(engine, task, memory.NewBufferedMemory(0)).WithTools(agents.NewGenericAgentTool(engine, []tools.Tool{}))
+	agent := agents.NewChainAgent(engine, task, memory.NewBufferedMemory(0))
 	if codeValidator != nil {
 		agent = agent.WithOutputValidators(func(utwr UnitTestWriterResponse) error {
 			err := codeValidator(utwr.UnitTestFile)

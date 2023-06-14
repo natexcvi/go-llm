@@ -18,11 +18,13 @@ type GPT struct {
 	PromptTokenLimit     int
 	CompletionTokenLimit int
 	TotalTokenLimit      int
+	functions            []FunctionSpecs
 }
 
 type ChatCompletionRequest struct {
-	Model    string         `json:"model"`
-	Messages []*ChatMessage `json:"messages"`
+	Model     string          `json:"model"`
+	Messages  []*ChatMessage  `json:"messages"`
+	Functions []FunctionSpecs `json:"functions,omitempty"`
 }
 
 type ChatCompletionResponse struct {
@@ -40,8 +42,9 @@ func (gpt *GPT) Predict(prompt *ChatPrompt) (*ChatMessage, error) {
 		return nil, ErrTokenLimitExceeded
 	}
 	bodyJSON, err := json.Marshal(ChatCompletionRequest{
-		Model:    gpt.Model,
-		Messages: prompt.History,
+		Model:     gpt.Model,
+		Messages:  prompt.History,
+		Functions: gpt.functions,
 	})
 	if err != nil {
 		return nil, err
@@ -62,6 +65,10 @@ func (gpt *GPT) Predict(prompt *ChatPrompt) (*ChatMessage, error) {
 	}
 	defer res.Body.Close()
 	return gpt.parseResponseBody(res.Body)
+}
+
+func (gpt *GPT) SetFunctions(funcs ...FunctionSpecs) {
+	gpt.functions = funcs
 }
 
 func (gpt *GPT) isLimitExceeded() bool {

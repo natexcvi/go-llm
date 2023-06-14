@@ -16,6 +16,7 @@ import (
 
 type MockEngine struct {
 	Responses []*engines.ChatMessage
+	Functions []engines.FunctionSpecs
 }
 
 func (engine *MockEngine) Predict(prompt *engines.ChatPrompt) (*engines.ChatMessage, error) {
@@ -25,6 +26,10 @@ func (engine *MockEngine) Predict(prompt *engines.ChatPrompt) (*engines.ChatMess
 	response := engine.Responses[0]
 	engine.Responses = engine.Responses[1:]
 	return response, nil
+}
+
+func (engine *MockEngine) SetFunctions(funcs ...engines.FunctionSpecs) {
+	engine.Functions = funcs
 }
 
 type Str string
@@ -120,6 +125,58 @@ func TestChainAgent(t *testing.T) {
 						"echo",
 						"echoes the input",
 						json.RawMessage(`"the string to echo"`),
+						func(args json.RawMessage) (json.RawMessage, error) {
+							return args, nil
+						},
+					),
+				},
+				OutputValidators: []func(*Str) error{
+					func(output *Str) error {
+						if *output == "" {
+							return errors.New("output is empty")
+						}
+						return nil
+					},
+				},
+			},
+			input:  newStr("hello"),
+			output: newStr("Hello world"),
+		},
+		{
+			name: "simple with native LLM functions",
+			agent: &ChainAgent[*Str, *Str]{
+				Engine: &MockEngine{
+					Responses: []*engines.ChatMessage{
+						{
+							Role: engines.ConvRoleAssistant,
+							Text: "",
+							FunctionCall: &engines.FunctionCall{
+								Name: "echo",
+								Args: []byte(`{"msg": "world"}`),
+							},
+						},
+						{
+							Role: engines.ConvRoleAssistant,
+							Text: `ANS: "Hello world"`,
+						},
+					},
+				},
+				Task: &Task[*Str, *Str]{
+					Description: "Say hello to an entity you find yourself",
+					AnswerParser: func(text string) (*Str, error) {
+						var output string
+						err := json.Unmarshal([]byte(text), &output)
+						require.NoError(t, err)
+						return newStr(output), nil
+					},
+				},
+				Memory: newMockMemory(t),
+				Tools: map[string]tools.Tool{
+					"echo": newMockTool(
+						t,
+						"echo",
+						"echoes the input",
+						json.RawMessage(`{"msg": "the string to echo"}`),
 						func(args json.RawMessage) (json.RawMessage, error) {
 							return args, nil
 						},

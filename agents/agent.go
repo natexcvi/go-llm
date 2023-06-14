@@ -33,6 +33,10 @@ var (
 	operationRegexWithoutEnd = regexp.MustCompile(`(?P<code>[A-Z]{3}):\s*(?P<content>[\s\S]*)`)
 )
 
+var (
+	errNativeFunctionsUnsupported = errors.New("native functions are not supported for this LLM")
+)
+
 //go:generate mockgen -source=agent.go -destination=mocks/agent.go -package=mocks
 type Agent[T any, S any] interface {
 	Run(input T) (S, error)
@@ -61,7 +65,24 @@ func (a *ChainAgentAction) Encode() string {
 	return fmt.Sprintf(MessageFormat, ActionCode, fmt.Sprintf("%s(%s)", a.Tool.Name(), a.Tool.CompactArgs(a.Args)))
 }
 
+func (a *ChainAgent[T, S]) parseNativeFunctionCall(msg *engines.ChatMessage) (*ChainAgentAction, error) {
+	if msg.FunctionCall == nil {
+		return nil, errors.New("no function call found")
+	}
+	tool, ok := a.Tools[msg.FunctionCall.Name]
+	if !ok {
+		return nil, fmt.Errorf("tool %q not found. Available tools: %s", msg.FunctionCall.Name, strings.Join(maps.Keys(a.Tools), ", "))
+	}
+	return &ChainAgentAction{
+		Tool: tool,
+		Args: msg.FunctionCall.Args,
+	}, nil
+}
+
 func (a *ChainAgent[T, S]) ParseChainAgentAction(msg *engines.ChatMessage) (*ChainAgentAction, error) {
+	if msg.FunctionCall != nil {
+		return a.parseNativeFunctionCall(msg)
+	}
 	matches := actionRegex.FindStringSubmatch(msg.Text)
 	if len(matches) != 3 {
 		return nil, fmt.Errorf("invalid action format: message must start with `%s: ` and the action call itself must match regex %q", ActionCode, actionRegex.String())
@@ -136,6 +157,12 @@ func (a *ChainAgent[T, S]) executeAction(action *ChainAgentAction) (obs *engines
 		return &engines.ChatMessage{
 			Role: engines.ConvRoleSystem,
 			Text: fmt.Sprintf(MessageFormat, ErrorCode, err.Error()),
+		}
+	}
+	if _, ok := a.Engine.(engines.LLMWithFunctionCalls); ok {
+		return &engines.ChatMessage{
+			Role:         engines.ConvRoleFunction,
+			FunctionCall: &engines.FunctionCall{Name: action.Tool.Name(), Args: action.Args},
 		}
 	}
 	return &engines.ChatMessage{
@@ -291,7 +318,31 @@ func NewChainAgent[T Representable, S Representable](engine engines.LLM, task *T
 	}
 }
 
+func (a *ChainAgent[T, S]) setNativeLLMFunctions(tools ...toolsPkg.Tool) (err error) {
+	engineWithFunctions, ok := a.Engine.(engines.LLMWithFunctionCalls)
+	if !ok {
+		return errNativeFunctionsUnsupported
+	}
+	functions := make([]engines.FunctionSpecs, len(tools))
+	for _, tool := range tools {
+		function, err := toolsPkg.ConvertToNativeFunctionSpecs(tool)
+		if err != nil {
+			return fmt.Errorf("failed to convert tool to native function specs: %w", err)
+		}
+		functions = append(functions, function)
+	}
+	engineWithFunctions.SetFunctions(functions...)
+	return nil
+}
+
 func (a *ChainAgent[T, S]) WithTools(tools ...toolsPkg.Tool) *ChainAgent[T, S] {
+	err := a.setNativeLLMFunctions(tools...)
+	if err == nil {
+		return a
+	}
+	if !errors.Is(err, errNativeFunctionsUnsupported) {
+		log.Warnf("failed to set native LLM functions, using fallback: %v", err)
+	}
 	for _, tool := range tools {
 		a.Tools[tool.Name()] = tool
 		if preprocessor, ok := tool.(toolsPkg.PreprocessingTool); ok {
