@@ -43,13 +43,6 @@ func (t *JSONAutoFixer) prompt(args json.RawMessage) *engines.ChatPrompt {
 	return &prompt
 }
 
-func (t *JSONAutoFixer) predict(prompt *engines.ChatPrompt) (*engines.ChatMessage, error) {
-	if model, ok := t.engine.(engines.LLMWithFunctionCalls); ok {
-		return model.PredictWithoutFunctions(prompt)
-	}
-	return t.engine.Predict(prompt)
-}
-
 func (t *JSONAutoFixer) validateJSON(raw string) error {
 	var obj any
 	if err := json.Unmarshal([]byte(raw), &obj); err != nil {
@@ -74,7 +67,7 @@ func (t *JSONAutoFixer) Process(args json.RawMessage) (json.RawMessage, error) {
 	prompt := t.prompt(args)
 	var cumErr *multierror.Error
 	for i := 0; i < t.maxRetries; i++ {
-		resp, err := t.predict(prompt)
+		resp, err := t.engine.Predict(prompt)
 		if err != nil {
 			return nil, fmt.Errorf("error running JSON auto fixer: %w", err)
 		}

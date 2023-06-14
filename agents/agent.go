@@ -311,6 +311,13 @@ func (a *ChainAgent[T, S]) logMessages(msg ...*engines.ChatMessage) {
 	}
 }
 
+func (a *ChainAgent[T, S]) predict(prompt *engines.ChatPrompt) (*engines.ChatMessage, error) {
+	if engine, ok := a.Engine.(engines.LLMWithFunctionCalls); ok {
+		return engine.PredictWithFunctions(prompt)
+	}
+	return a.Engine.Predict(prompt)
+}
+
 func (a *ChainAgent[T, S]) run(input T) (output S, err error) {
 	var inputErr *multierror.Error
 	for _, validator := range a.InputValidators {
@@ -329,7 +336,7 @@ func (a *ChainAgent[T, S]) run(input T) (output S, err error) {
 	if err != nil {
 		return output, fmt.Errorf("failed to add prompt to memory: %w", err)
 	}
-	response, err := a.Engine.Predict(taskPrompt)
+	response, err := a.predict(taskPrompt)
 	if err != nil {
 		return output, fmt.Errorf("failed to predict response: %w", err)
 	}
@@ -352,7 +359,7 @@ func (a *ChainAgent[T, S]) run(input T) (output S, err error) {
 		if a.MaxSolutionAttempts > 0 && stepsExecuted > a.MaxSolutionAttempts {
 			return output, errors.New("max solution attempts reached")
 		}
-		response, err = a.Engine.Predict(prompt)
+		response, err = a.predict(prompt)
 		if err != nil {
 			return output, fmt.Errorf("failed to predict response: %w", err)
 		}

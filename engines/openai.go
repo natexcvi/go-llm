@@ -74,12 +74,12 @@ func (gpt *GPT) SetFunctions(funcs ...FunctionSpecs) {
 	gpt.functions = funcs
 }
 
-func (gpt *GPT) PredictWithoutFunctions(prompt *ChatPrompt) (*ChatMessage, error) {
-	return gpt.predict(prompt, false)
+func (gpt *GPT) PredictWithFunctions(prompt *ChatPrompt) (*ChatMessage, error) {
+	return gpt.predict(prompt, true)
 }
 
 func (gpt *GPT) Predict(prompt *ChatPrompt) (*ChatMessage, error) {
-	return gpt.predict(prompt, true)
+	return gpt.predict(prompt, false)
 }
 
 func (gpt *GPT) isLimitExceeded() bool {
