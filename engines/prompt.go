@@ -1,7 +1,5 @@
 package engines
 
-import "encoding/json"
-
 type ConvRole string
 
 const (
@@ -19,8 +17,8 @@ type ChatMessage struct {
 }
 
 type FunctionCall struct {
-	Name string          `json:"name"`
-	Args json.RawMessage `json:"arguments"`
+	Name string `json:"name"`
+	Args string `json:"arguments"`
 }
 
 type ChatPrompt struct {

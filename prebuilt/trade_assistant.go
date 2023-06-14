@@ -63,25 +63,16 @@ func NewTradeAssistantAgent(engine engines.LLM, wolframAlphaAppID string) agents
 					},
 				},
 				IntermediarySteps: []*engines.ChatMessage{
-					{
-						Role: engines.ConvRoleAssistant,
-						Text: (&agents.ChainAgentThought{
-							Content: "I should look up the stock price for each stock.",
-						}).Encode(),
-					},
-					{
-						Role: engines.ConvRoleAssistant,
-						Text: (&agents.ChainAgentAction{
-							Tool: tools.NewWolframAlpha(wolframAlphaAppID),
-							Args: json.RawMessage(`{"query": "stock price of AAPL"}`),
-						}).Encode(),
-					},
-					{
-						Role: engines.ConvRoleSystem,
-						Text: (&agents.ChainAgentObservation{
-							Content: "AAPL is currently trading at $100.00",
-						}).Encode(),
-					},
+					(&agents.ChainAgentThought{
+						Content: "I should look up the stock price for each stock.",
+					}).Encode(engine),
+					(&agents.ChainAgentAction{
+						Tool: tools.NewWolframAlpha(wolframAlphaAppID),
+						Args: json.RawMessage(`{"query": "stock price of AAPL"}`),
+					}).Encode(engine),
+					(&agents.ChainAgentObservation{
+						Content: "AAPL is currently trading at $100.00",
+					}).Encode(engine),
 				},
 			},
 		},

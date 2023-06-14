@@ -152,7 +152,7 @@ func TestChainAgent(t *testing.T) {
 							Text: "",
 							FunctionCall: &engines.FunctionCall{
 								Name: "echo",
-								Args: []byte(`{"msg": "world"}`),
+								Args: `{"msg": "world"}`,
 							},
 						},
 						{

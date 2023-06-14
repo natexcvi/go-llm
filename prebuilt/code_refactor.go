@@ -55,44 +55,26 @@ func NewCodeRefactorAgent(engine engines.LLM) agents.Agent[CodeBaseRefactorReque
 					},
 				},
 				IntermediarySteps: []*engines.ChatMessage{
-					{
-						Role: engines.ConvRoleAssistant,
-						Text: (&agents.ChainAgentThought{
-							Content: "I should scan the code base for functions that might error.",
-						}).Encode(),
-					},
-					{
-						Role: engines.ConvRoleAssistant,
-						Text: (&agents.ChainAgentAction{
-							Tool: agents.NewGenericAgentTool(nil, nil),
-							Args: json.RawMessage(`{"task": "scan code base for functions that might error", "input": "/Users/nate/code/base"}`),
-						}).Encode(),
-					},
-					{
-						Role: engines.ConvRoleSystem,
-						Text: (&agents.ChainAgentObservation{
-							Content: "main.py",
-						}).Encode(),
-					},
-					{
-						Role: engines.ConvRoleAssistant,
-						Text: (&agents.ChainAgentThought{
-							Content: "Now I should handle each function that might error.",
-						}).Encode(),
-					},
-					{
-						Role: engines.ConvRoleAssistant,
-						Text: (&agents.ChainAgentAction{
-							Tool: agents.NewGenericAgentTool(nil, nil),
-							Args: json.RawMessage(`{"task": "fix any function that has unhandled exceptions in the file you will be given.", "input": "/Users/nate/code/base/main.py"}`),
-						}).Encode(),
-					},
-					{
-						Role: engines.ConvRoleSystem,
-						Text: (&agents.ChainAgentObservation{
-							Content: "Okay, I've fixed the errors in main.py by wrapping a block with try/except.",
-						}).Encode(),
-					},
+					(&agents.ChainAgentThought{
+						Content: "I should scan the code base for functions that might error.",
+					}).Encode(engine),
+					(&agents.ChainAgentAction{
+						Tool: agents.NewGenericAgentTool(nil, nil),
+						Args: json.RawMessage(`{"task": "scan code base for functions that might error", "input": "/Users/nate/code/base"}`),
+					}).Encode(engine),
+					(&agents.ChainAgentObservation{
+						Content: "main.py",
+					}).Encode(engine),
+					(&agents.ChainAgentThought{
+						Content: "Now I should handle each function that might error.",
+					}).Encode(engine),
+					(&agents.ChainAgentAction{
+						Tool: agents.NewGenericAgentTool(nil, nil),
+						Args: json.RawMessage(`{"task": "fix any function that has unhandled exceptions in the file you will be given.", "input": "/Users/nate/code/base/main.py"}`),
+					}).Encode(engine),
+					(&agents.ChainAgentObservation{
+						Content: "Okay, I've fixed the errors in main.py by wrapping a block with try/except.",
+					}).Encode(engine),
 				},
 			},
 		},

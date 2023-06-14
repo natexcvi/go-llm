@@ -46,8 +46,11 @@ type ChainAgentThought struct {
 	Content string
 }
 
-func (a *ChainAgentThought) Encode() string {
-	return fmt.Sprintf(MessageFormat, ThoughtCode, a.Content)
+func (a *ChainAgentThought) Encode(_ engines.LLM) *engines.ChatMessage {
+	return &engines.ChatMessage{
+		Role: engines.ConvRoleUser,
+		Text: fmt.Sprintf(MessageFormat, ThoughtCode, a.Content),
+	}
 }
 
 func ParseChainAgentThought(thought *engines.ChatMessage) *ChainAgentThought {
@@ -61,8 +64,21 @@ type ChainAgentAction struct {
 	Args json.RawMessage
 }
 
-func (a *ChainAgentAction) Encode() string {
-	return fmt.Sprintf(MessageFormat, ActionCode, fmt.Sprintf("%s(%s)", a.Tool.Name(), a.Tool.CompactArgs(a.Args)))
+func (a *ChainAgentAction) Encode(targetEngine engines.LLM) *engines.ChatMessage {
+	if _, ok := targetEngine.(engines.LLMWithFunctionCalls); ok {
+		return &engines.ChatMessage{
+			Role: engines.ConvRoleAssistant,
+			FunctionCall: &engines.FunctionCall{
+				Name: a.Tool.Name(),
+				Args: string(a.Args),
+			},
+		}
+	}
+	msgText := fmt.Sprintf(MessageFormat, ActionCode, fmt.Sprintf("%s(%s)", a.Tool.Name(), a.Tool.CompactArgs(a.Args)))
+	return &engines.ChatMessage{
+		Role: engines.ConvRoleAssistant,
+		Text: msgText,
+	}
 }
 
 func (a *ChainAgent[T, S]) parseNativeFunctionCall(msg *engines.ChatMessage) (*ChainAgentAction, error) {
@@ -75,7 +91,7 @@ func (a *ChainAgent[T, S]) parseNativeFunctionCall(msg *engines.ChatMessage) (*C
 	}
 	return &ChainAgentAction{
 		Tool: tool,
-		Args: msg.FunctionCall.Args,
+		Args: []byte(msg.FunctionCall.Args),
 	}, nil
 }
 
@@ -137,41 +153,85 @@ type ChainAgent[T Representable, S Representable] struct {
 	ActionArgPreprocessors []toolsPkg.PreprocessingTool
 }
 
-type ChainAgentObservation struct {
-	Content string
+type ChainAgentMessage interface {
+	Encode(targetEngine engines.LLM) *engines.ChatMessage
 }
 
-func (a *ChainAgentObservation) Encode() string {
-	return fmt.Sprintf(MessageFormat, ObservationCode, a.Content)
+type ChainAgentError struct {
+	Content  string
+	ToolName string
 }
 
-func (a *ChainAgent[T, S]) executeAction(action *ChainAgentAction) (obs *engines.ChatMessage) {
-	if a.ActionConfirmation != nil && !a.ActionConfirmation(action) {
+func (a *ChainAgentError) Encode(targetEngine engines.LLM) *engines.ChatMessage {
+	if _, ok := targetEngine.(engines.LLMWithFunctionCalls); ok {
 		return &engines.ChatMessage{
-			Role: engines.ConvRoleSystem,
-			Text: fmt.Sprintf(MessageFormat, ErrorCode, "action cancelled by the user"),
-		}
-	}
-	actionOutput, err := action.Tool.Execute(action.Args)
-	if err != nil {
-		return &engines.ChatMessage{
-			Role: engines.ConvRoleSystem,
-			Text: fmt.Sprintf(MessageFormat, ErrorCode, err.Error()),
-		}
-	}
-	if _, ok := a.Engine.(engines.LLMWithFunctionCalls); ok {
-		return &engines.ChatMessage{
-			Role:         engines.ConvRoleFunction,
-			FunctionCall: &engines.FunctionCall{Name: action.Tool.Name(), Args: action.Args},
+			Role: engines.ConvRoleFunction,
+			Name: a.ToolName,
+			Text: fmt.Sprintf("An error has occured: %s", a.Content),
 		}
 	}
 	return &engines.ChatMessage{
 		Role: engines.ConvRoleSystem,
-		Text: fmt.Sprintf(MessageFormat, ObservationCode, actionOutput),
+		Text: fmt.Sprintf(MessageFormat, ErrorCode, a.Content),
 	}
 }
 
+type ChainAgentObservation struct {
+	Content  string
+	ToolName string
+}
+
+func (a *ChainAgentObservation) Encode(targetEngine engines.LLM) *engines.ChatMessage {
+	if _, ok := targetEngine.(engines.LLMWithFunctionCalls); ok {
+		return &engines.ChatMessage{
+			Role: engines.ConvRoleFunction,
+			Name: a.ToolName,
+			Text: a.Content,
+		}
+	}
+	return &engines.ChatMessage{
+		Role: engines.ConvRoleSystem,
+		Text: fmt.Sprintf(MessageFormat, ObservationCode, a.Content),
+	}
+}
+
+func (a *ChainAgent[T, S]) executeAction(action *ChainAgentAction) (obs ChainAgentMessage) {
+	if a.ActionConfirmation != nil && !a.ActionConfirmation(action) {
+		return &ChainAgentError{
+			Content:  "action cancelled by the user",
+			ToolName: action.Tool.Name(),
+		}
+	}
+	actionOutput, err := action.Tool.Execute(action.Args)
+	if err != nil {
+		return &ChainAgentError{
+			Content:  err.Error(),
+			ToolName: action.Tool.Name(),
+		}
+	}
+	return &ChainAgentObservation{
+		Content:  string(actionOutput),
+		ToolName: action.Tool.Name(),
+	}
+}
+
+func (a *ChainAgent[T, S]) processFunctionCallMessage(response *engines.ChatMessage) (nextMessages []*engines.ChatMessage, answer *ChainAgentAnswer[S]) {
+	action, err := a.parseNativeFunctionCall(response)
+	if err != nil {
+		nextMessages = append(nextMessages, &engines.ChatMessage{
+			Role: engines.ConvRoleFunction,
+			Text: fmt.Sprintf(MessageFormat, ErrorCode, err.Error()),
+		})
+		return
+	}
+	nextMessages = append(nextMessages, a.executeAction(action).Encode(a.Engine))
+	return
+}
+
 func (a *ChainAgent[T, S]) parseResponse(response *engines.ChatMessage) (nextMessages []*engines.ChatMessage, answer *ChainAgentAnswer[S]) {
+	if response.FunctionCall != nil {
+		return a.processFunctionCallMessage(response)
+	}
 	var exp *regexp.Regexp
 	var ops [][]string
 	for _, candidateExp := range []*regexp.Regexp{operationRegex, operationRegexWithoutEnd} {
@@ -203,7 +263,7 @@ func (a *ChainAgent[T, S]) parseResponse(response *engines.ChatMessage) (nextMes
 				break
 			}
 			obs := a.executeAction(action)
-			nextMessages = append(nextMessages, obs)
+			nextMessages = append(nextMessages, obs.Encode(a.Engine))
 		case AnswerCode:
 			answer, err := a.parseChainAgentAnswer(&engines.ChatMessage{
 				Role: engines.ConvRoleAssistant,
@@ -242,6 +302,10 @@ func (a *ChainAgent[T, S]) validateAnswer(answer S) error {
 
 func (a *ChainAgent[T, S]) logMessages(msg ...*engines.ChatMessage) {
 	for _, m := range msg {
+		if m.FunctionCall != nil {
+			log.Debugf("[%s] [function_call] %s(%s)", m.Role, m.FunctionCall.Name, m.FunctionCall.Args)
+			continue
+		}
 		log.Debugf("[%s] %s", m.Role, m.Text)
 	}
 }
@@ -254,7 +318,11 @@ func (a *ChainAgent[T, S]) run(input T) (output S, err error) {
 	if inputErr.ErrorOrNil() != nil {
 		return output, fmt.Errorf("invalid input: %w", inputErr)
 	}
-	taskPrompt := a.Task.Compile(input, a.Tools)
+	visibleTools := a.Tools
+	if _, ok := a.Engine.(engines.LLMWithFunctionCalls); ok {
+		visibleTools = map[string]toolsPkg.Tool{}
+	}
+	taskPrompt := a.Task.Compile(input, visibleTools)
 	a.logMessages(taskPrompt.History...)
 	err = a.Memory.AddPrompt(taskPrompt)
 	if err != nil {
@@ -324,12 +392,12 @@ func (a *ChainAgent[T, S]) setNativeLLMFunctions(tools ...toolsPkg.Tool) (err er
 		return errNativeFunctionsUnsupported
 	}
 	functions := make([]engines.FunctionSpecs, len(tools))
-	for _, tool := range tools {
+	for i, tool := range tools {
 		function, err := toolsPkg.ConvertToNativeFunctionSpecs(tool)
 		if err != nil {
 			return fmt.Errorf("failed to convert tool to native function specs: %w", err)
 		}
-		functions = append(functions, function)
+		functions[i] = function
 	}
 	engineWithFunctions.SetFunctions(functions...)
 	return nil
@@ -337,10 +405,7 @@ func (a *ChainAgent[T, S]) setNativeLLMFunctions(tools ...toolsPkg.Tool) (err er
 
 func (a *ChainAgent[T, S]) WithTools(tools ...toolsPkg.Tool) *ChainAgent[T, S] {
 	err := a.setNativeLLMFunctions(tools...)
-	if err == nil {
-		return a
-	}
-	if !errors.Is(err, errNativeFunctionsUnsupported) {
+	if err != nil && !errors.Is(err, errNativeFunctionsUnsupported) {
 		log.Warnf("failed to set native LLM functions, using fallback: %v", err)
 	}
 	for _, tool := range tools {

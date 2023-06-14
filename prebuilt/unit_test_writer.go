@@ -60,12 +60,9 @@ func NewUnitTestWriter(engine engines.LLM, codeValidator func(code string) error
 						"\n    assert add(4, -4) == 0\n",
 				},
 				IntermediarySteps: []*engines.ChatMessage{
-					{
-						Role: engines.ConvRoleAssistant,
-						Text: (&agents.ChainAgentThought{
-							Content: "I now know what tests to write.",
-						}).Encode(),
-					},
+					(&agents.ChainAgentThought{
+						Content: "I now know what tests to write.",
+					}).Encode(engine),
 				},
 			},
 		},
