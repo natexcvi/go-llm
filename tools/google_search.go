@@ -56,13 +56,20 @@ func (ws *WebSearch) ArgsSchema() json.RawMessage {
 	return json.RawMessage(`{"query": "the search query"}`)
 }
 
+func (ws *WebSearch) isPlaywrightInstalled() bool {
+	_, err := playwright.Run()
+	return err == nil
+}
+
 func (ws *WebSearch) search(query string) (searchResults []SearchResult, err error) {
 	_, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	// err = playwright.Install()
-	// if err != nil {
-	// 	return nil, fmt.Errorf("could not install playwright: %v", err)
-	// }
+	if !ws.isPlaywrightInstalled() {
+		err = playwright.Install()
+		if err != nil {
+			return nil, fmt.Errorf("could not install playwright: %v", err)
+		}
+	}
 	pw, err := playwright.Run()
 	if err != nil {
 		return nil, fmt.Errorf("could not start playwright: %v", err)
