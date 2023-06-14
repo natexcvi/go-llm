@@ -136,6 +136,9 @@ Currently available tools are:
 > 
 > The `BashTerminal` and regular `PythonREPL` tools let the agent run arbitrary commands on your machine, use at your own risk. It may be a good idea to use the built-in support for action confirmation callbacks (see the `WithActionConfirmation` method on the `ChainAgent` type).
 
+#### Model-Native Function Calls
+`go-llm` tools support the [new OpenAI function call interface](https://openai.com/blog/function-calling-and-other-api-updates?ref=upstract.com) transparently, for model variants that have this feature.
+
 ### Memory
 A memory system that allows agents to store and retrieve information.
 Currently available memory systems are:
