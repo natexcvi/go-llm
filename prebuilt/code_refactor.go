@@ -63,7 +63,8 @@ func NewCodeRefactorAgent(engine engines.LLM) agents.Agent[CodeBaseRefactorReque
 						Args: json.RawMessage(`{"task": "scan code base for functions that might error", "input": "/Users/nate/code/base"}`),
 					}).Encode(engine),
 					(&agents.ChainAgentObservation{
-						Content: "main.py",
+						Content:  "main.py",
+						ToolName: "smart_agent",
 					}).Encode(engine),
 					(&agents.ChainAgentThought{
 						Content: "Now I should handle each function that might error.",
@@ -73,7 +74,8 @@ func NewCodeRefactorAgent(engine engines.LLM) agents.Agent[CodeBaseRefactorReque
 						Args: json.RawMessage(`{"task": "fix any function that has unhandled exceptions in the file you will be given.", "input": "/Users/nate/code/base/main.py"}`),
 					}).Encode(engine),
 					(&agents.ChainAgentObservation{
-						Content: "Okay, I've fixed the errors in main.py by wrapping a block with try/except.",
+						Content:  "Okay, I've fixed the errors in main.py by wrapping a block with try/except.",
+						ToolName: "smart_agent",
 					}).Encode(engine),
 				},
 			},

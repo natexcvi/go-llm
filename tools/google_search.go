@@ -59,10 +59,10 @@ func (ws *WebSearch) ArgsSchema() json.RawMessage {
 func (ws *WebSearch) search(query string) (searchResults []SearchResult, err error) {
 	_, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	err = playwright.Install()
-	if err != nil {
-		return nil, fmt.Errorf("could not install playwright: %v", err)
-	}
+	// err = playwright.Install()
+	// if err != nil {
+	// 	return nil, fmt.Errorf("could not install playwright: %v", err)
+	// }
 	pw, err := playwright.Run()
 	if err != nil {
 		return nil, fmt.Errorf("could not start playwright: %v", err)

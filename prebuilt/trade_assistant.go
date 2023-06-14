@@ -71,7 +71,8 @@ func NewTradeAssistantAgent(engine engines.LLM, wolframAlphaAppID string) agents
 						Args: json.RawMessage(`{"query": "stock price of AAPL"}`),
 					}).Encode(engine),
 					(&agents.ChainAgentObservation{
-						Content: "AAPL is currently trading at $100.00",
+						Content:  "AAPL is currently trading at $100.00",
+						ToolName: "wolfram_alpha",
 					}).Encode(engine),
 				},
 			},

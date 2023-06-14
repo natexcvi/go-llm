@@ -220,6 +220,7 @@ func (a *ChainAgent[T, S]) processFunctionCallMessage(response *engines.ChatMess
 	if err != nil {
 		nextMessages = append(nextMessages, &engines.ChatMessage{
 			Role: engines.ConvRoleFunction,
+			Name: response.FunctionCall.Name,
 			Text: fmt.Sprintf(MessageFormat, ErrorCode, err.Error()),
 		})
 		return
