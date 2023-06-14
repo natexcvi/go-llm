@@ -61,7 +61,8 @@ func TestPythonRepl(t *testing.T) {
 				),
 			))
 			if tc.expError != nil {
-				require.True(t, strings.HasPrefix(err.Error(), tc.expError.Error()), "expected error to start with %q, got %q", tc.expError.Error(), actualError)
+				actualError := err.Error()
+				require.True(t, strings.HasPrefix(actualError, tc.expError.Error()), "expected error to start with %q, got %q", tc.expError.Error(), actualError)
 				return
 			}
 			require.NoError(t, err)
