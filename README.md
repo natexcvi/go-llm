@@ -87,7 +87,7 @@ func main() {
 			return res, nil
 		},
 	}
-	agent := agents.NewChainAgent(engines.NewGPTEngine(os.Getenv("OPENAI_TOKEN"), "gpt-3.5-turbo"), task, memory.NewBufferedMemory(0)).WithMaxSolutionAttempts(12).WithTools(tools.NewPythonREPL(), tools.NewBashTerminal())
+	agent := agents.NewChainAgent(engines.NewGPTEngine(os.Getenv("OPENAI_TOKEN"), "gpt-3.5-turbo-0613"), task, memory.NewBufferedMemory(0)).WithMaxSolutionAttempts(12).WithTools(tools.NewPythonREPL(), tools.NewBashTerminal())
 	res, err := agent.Run(CodeBaseRefactorRequest{
 		Dir:  "/Users/nate/Git/go-llm/tools",
 		Goal: "Write unit tests for the bash.go file, following the example of python_repl_test.go.",
