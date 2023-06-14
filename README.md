@@ -47,43 +47,35 @@ func main() {
 					},
 				},
 				IntermediarySteps: []*engines.ChatMessage{
-					{
-						Role: engines.ConvRoleAssistant,
-						Text: (&agents.ChainAgentThought{
-							Content: "I should scan the code base for functions that might error.",
-						}).Encode(),
-					},
-					{
-						Role: engines.ConvRoleAssistant,
-						Text: (&agents.ChainAgentAction{
-							Tool: tools.NewBashTerminal(),
-							Args: json.RawMessage(`{"command": "ls /Users/nate/code/base"}`),
-						}).Encode(),
-					},
-					{
-						Role: engines.ConvRoleSystem,
-						Text: "OBS: main.py",
-					},
-					{
-						Role: engines.ConvRoleAssistant,
-						Text: "THT: Now I should read the code file.",
-					},
-					{
-						Role: engines.ConvRoleAssistant,
-						Text: `ACT: bash({"command": "cat /Users/nate/code/base/main.py"})`,
-					},
-					{
-						Role: engines.ConvRoleSystem,
-						Text: "OBS: def main():\n\tfunc_that_might_error()",
-					},
-					{
-						Role: engines.ConvRoleAssistant,
-						Text: "THT: I should refactor the code to handle errors gracefully.",
-					},
-					{
-						Role: engines.ConvRoleAssistant,
-						Text: `ACT: bash({"command": "echo 'def main():\n\ttry:\n\t\tfunc_that_might_error()\n\texcept Exception as e:\n\t\tprint(\"Error: %s\", e)' > /Users/nate/code/base/main.py"})`,
-					},
+					(&agents.ChainAgentThought{
+						Content: "I should scan the code base for functions that might error.",
+					}).Encode(engine),
+					(&agents.ChainAgentAction{
+						Tool: tools.NewBashTerminal(),
+						Args: json.RawMessage(`{"command": "ls /Users/nate/code/base"}`),
+					}).Encode(engine),
+					(&agents.ChainAgentObservation{
+						Content:  "main.py",
+						ToolName: tools.NewBashTerminal().Name(),
+					}).Encode(engine),
+					(&agents.ChainAgentThought{
+						Content: "Now I should read the code file.",
+					}).Encode(engine),
+					(&agents.ChainAgentAction{
+						Tool: tools.NewBashTerminal(),
+						Args: json.RawMessage(`{"command": "cat /Users/nate/code/base/main.py"}`),
+					}).Encode(engine),
+					(&agents.ChainAgentObservation{
+						Content:  "def main():\n\tfunc_that_might_error()",
+						ToolName: tools.NewBashTerminal().Name(),
+					}).Encode(engine),
+					(&agents.ChainAgentThought{
+						Content: "I should refactor the code to handle errors gracefully.",
+					}).Encode(engine),
+					(&agents.ChainAgentAction{
+						Tool: tools.NewBashTerminal(),
+						Args: json.RawMessage(`{"command": "echo 'def main():\n\ttry:\n\t\tfunc_that_might_error()\n\texcept Exception as e:\n\t\tprint(\"Error: %s\", e)' > /Users/nate/code/base/main.py"}`),
+					}).Encode(engine),
 				},
 			},
 		},
