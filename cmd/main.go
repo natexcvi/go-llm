@@ -143,7 +143,7 @@ func validateDirectory(dir string) error {
 
 func init() {
 	rootCmd.PersistentFlags().IntVar(&tokenLimit, "token-limit", 0, "stop after using this many tokens")
-	rootCmd.PersistentFlags().StringVar(&gptModel, "gpt-model", "gpt-3.5-turbo", "the GPT model to use")
+	rootCmd.PersistentFlags().StringVar(&gptModel, "gpt-model", "gpt-3.5-turbo-0613", "the GPT model to use")
 }
 
 func main() {
