@@ -94,26 +94,9 @@ func (ws *WebSearch) search(query string) (searchResults []SearchResult, err err
 	defer page.Close()
 
 	// Navigate to Google and search for query
-	if _, err := page.Goto(ws.ServiceURL); err != nil {
+	searchURL := fmt.Sprintf("%s/search?q=%s", ws.ServiceURL, query)
+	if _, err := page.Goto(searchURL); err != nil {
 		return nil, fmt.Errorf("could not navigate to google: %v", err)
-	}
-	// If the page has a dialog, dismiss it
-	acceptAllBtns, err := page.Locator("button:has-text(\"Accept all\")")
-	if err == nil {
-		btn, err := acceptAllBtns.First()
-		if err == nil {
-			btn.Click()
-		}
-	}
-	searchBox, err := page.Locator("input[name=\"q\"],textarea[name=\"q\"]")
-	if err != nil {
-		return nil, fmt.Errorf("could not find search input: %v", err)
-	}
-	if err := searchBox.Fill(query); err != nil {
-		return nil, fmt.Errorf("could not fill search input: %v", err)
-	}
-	if err := page.Keyboard().Press("Enter"); err != nil {
-		return nil, fmt.Errorf("could not press enter: %v", err)
 	}
 
 	// Wait for the search results to load

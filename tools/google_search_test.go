@@ -70,7 +70,7 @@ func TestWebSearch(t *testing.T) {
 	mockSearchService(t)
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ws := NewWebSearch("http://localhost:8080/search")
+			ws := NewWebSearch("http://localhost:8080")
 			output, err := ws.Execute(json.RawMessage(
 				fmt.Sprintf(`{"query": %q}`, tc.query),
 			))
