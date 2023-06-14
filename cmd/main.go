@@ -1,11 +1,15 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
+	"time"
 
+	"github.com/briandowns/spinner"
 	"github.com/natexcvi/go-llm/engines"
 	"github.com/natexcvi/go-llm/prebuilt"
+	"github.com/natexcvi/go-llm/tools"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -130,6 +134,55 @@ is an example unit test file.
 	Args: cobra.ExactArgs(2),
 }
 
+var gitAssistantCmd = &cobra.Command{
+	Use:   "git-assistant INSTRUCTION",
+	Short: "A git assistant.",
+	Run: func(cmd *cobra.Command, args []string) {
+		log.SetLevel(log.InfoLevel)
+		s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
+		s.Suffix = " Just a moment..."
+		s.Start()
+		apiKey := os.Getenv("OPENAI_API_KEY")
+		if apiKey == "" {
+			log.Errorf("OPENAI_API_KEY environment variable not set")
+			return
+		}
+		engine := engines.NewGPTEngine(apiKey, gptModel)
+		agent := prebuilt.NewGitAssistantAgent(engine)
+		res, err := agent.Run(prebuilt.GitAssistantRequest{
+			Instruction: args[0],
+		})
+		s.Stop()
+		if err != nil {
+			log.Error(err)
+			return
+		}
+		bashTool := tools.NewBashTerminal()
+		for op, reason := range res.Operations {
+			fmt.Printf("Run %q in order to %s? (y/n) ", op, reason)
+			var response string
+			fmt.Scanln(&response)
+			if response == "y" {
+				output, err := bashTool.Execute([]byte(fmt.Sprintf(`{"command": %q}`, op)))
+				if err != nil {
+					log.Error(err)
+					return
+				}
+				var unmarshaledOutput string
+				err = json.Unmarshal(output, &unmarshaledOutput)
+				if err != nil {
+					log.Error(err)
+					return
+				}
+				fmt.Printf("%s\n", unmarshaledOutput)
+				continue
+			}
+			fmt.Printf("Command skipped.\n")
+		}
+	},
+	Args: cobra.ExactArgs(1),
+}
+
 func validateDirectory(dir string) error {
 	dirInfo, err := os.Stat(dir)
 	if err != nil {
@@ -151,6 +204,7 @@ func main() {
 	rootCmd.AddCommand(codeRefactorAgent)
 	rootCmd.AddCommand(tradeAssistantAgent)
 	rootCmd.AddCommand(unitTestWriter)
+	rootCmd.AddCommand(gitAssistantCmd)
 
 	if err := rootCmd.Execute(); err != nil {
 		log.Fatal(err)
