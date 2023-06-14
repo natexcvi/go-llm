@@ -134,7 +134,7 @@ Currently available tools are:
 
 > **Warning**
 > 
-> The `BashTerminal` and regular `PythonREPL` tools let the agent run arbitrary commands on your machine, use at your own risk.
+> The `BashTerminal` and regular `PythonREPL` tools let the agent run arbitrary commands on your machine, use at your own risk. It may be a good idea to use the built-in support for action confirmation callbacks (see the `WithActionConfirmation` method on the `ChainAgent` type).
 
 ### Memory
 A memory system that allows agents to store and retrieve information.
