@@ -3,6 +3,7 @@ package tools
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/natexcvi/go-llm/engines"
 )
@@ -54,14 +55,23 @@ func convertArgSchemaToParameterSpecs(argSchema json.RawMessage) (engines.Parame
 			Items: nil,
 		}
 		// infer type from first element
-		if len(schema) > 0 {
-			marshaledValue, err := json.Marshal(schema[0])
+		for _, value := range schema {
+			marshaledValue, err := json.Marshal(value)
 			if err != nil {
 				return engines.ParameterSpecs{}, err
 			}
 			propertySpecs, err := convertArgSchemaToParameterSpecs(marshaledValue)
 			if err != nil {
 				return engines.ParameterSpecs{}, err
+			}
+			if specs.Items != nil && specs.Items.Type != propertySpecs.Type {
+				return engines.ParameterSpecs{}, fmt.Errorf("%w: arrays with values of more than one type not currently supported", ErrCannotAutoConvertArgSchema)
+			}
+			if specs.Items != nil && specs.Items.Description != propertySpecs.Description {
+				propertySpecs.Description = strings.Join([]string{
+					specs.Items.Description,
+					propertySpecs.Description,
+				}, " ")
 			}
 			specs.Items = &propertySpecs
 		}
