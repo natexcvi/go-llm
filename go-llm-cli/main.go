@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"time"
 
+	"github.com/AlecAivazis/survey/v2"
 	"github.com/briandowns/spinner"
 	"github.com/natexcvi/go-llm/engines"
 	"github.com/natexcvi/go-llm/prebuilt"
@@ -179,25 +180,27 @@ var gitAssistantCmd = &cobra.Command{
 		}
 		bashTool := tools.NewBashTerminal()
 		for _, op := range res.Operations {
-			fmt.Printf("Run %q in order to %s? (y/n) ", op.Operation, op.Reasoning)
-			var response string
-			fmt.Scanln(&response)
-			if response == "y" {
-				output, err := bashTool.Execute([]byte(fmt.Sprintf(`{"command": %q}`, op.Operation)))
-				if err != nil {
-					log.Error(err)
-					return
-				}
-				var unmarshaledOutput string
-				err = json.Unmarshal(output, &unmarshaledOutput)
-				if err != nil {
-					log.Error(err)
-					return
-				}
-				fmt.Printf("%s\n", unmarshaledOutput)
+			shouldRun := false
+			prompt := &survey.Confirm{
+				Message: fmt.Sprintf("Run %q in order to %s?", op.Operation, op.Reasoning),
+			}
+			survey.AskOne(prompt, &shouldRun)
+			if !shouldRun {
+				fmt.Printf("Command skipped.\n")
 				continue
 			}
-			fmt.Printf("Command skipped.\n")
+			output, err := bashTool.Execute([]byte(fmt.Sprintf(`{"command": %q}`, op.Operation)))
+			if err != nil {
+				log.Error(err)
+				return
+			}
+			var unmarshaledOutput string
+			err = json.Unmarshal(output, &unmarshaledOutput)
+			if err != nil {
+				log.Error(err)
+				return
+			}
+			fmt.Printf("%s\n", unmarshaledOutput)
 		}
 	},
 	Args: cobra.ExactArgs(1),
