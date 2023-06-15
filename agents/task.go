@@ -49,10 +49,14 @@ func (task *Task[T, S]) Compile(input T, tools map[string]tools.Tool) *engines.C
 		},
 	}
 	task.enrichPromptWithTools(tools, prompt)
+	prompt.History = append(prompt.History, &engines.ChatMessage{
+		Role: engines.ConvRoleUser,
+		Text: task.Description,
+	})
 	task.enrichPromptWithExamples(prompt)
 	prompt.History = append(prompt.History, &engines.ChatMessage{
 		Role: engines.ConvRoleUser,
-		Text: fmt.Sprintf("Task:\n%s\n\nInput:\n%s", task.Description, input.Encode()),
+		Text: input.Encode(),
 	})
 	return prompt
 }
@@ -61,10 +65,6 @@ func (task *Task[T, S]) enrichPromptWithExamples(prompt *engines.ChatPrompt) {
 	if len(task.Examples) == 0 {
 		return
 	}
-	prompt.History = append(prompt.History, &engines.ChatMessage{
-		Role: engines.ConvRoleSystem,
-		Text: "Here are some examples of how you might solve this task:",
-	})
 	for _, example := range task.Examples {
 		prompt.History = append(prompt.History, &engines.ChatMessage{
 			Role: engines.ConvRoleUser,

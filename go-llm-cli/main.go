@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"time"
 
 	"github.com/briandowns/spinner"
@@ -134,6 +135,15 @@ is an example unit test file.
 	Args: cobra.ExactArgs(2),
 }
 
+func gitStatus() (string, error) {
+	cmd := exec.Command("git", "status")
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("git status failed: %w", err)
+	}
+	return string(out), nil
+}
+
 var gitAssistantCmd = &cobra.Command{
 	Use:   "git-assistant INSTRUCTION",
 	Short: "A git assistant.",
@@ -149,8 +159,14 @@ var gitAssistantCmd = &cobra.Command{
 		}
 		engine := engines.NewGPTEngine(apiKey, gptModel)
 		agent := prebuilt.NewGitAssistantAgent(engine)
+		gitStatus, err := gitStatus()
+		if err != nil {
+			log.Error(err)
+			return
+		}
 		res, err := agent.Run(prebuilt.GitAssistantRequest{
 			Instruction: args[0],
+			GitStatus:   gitStatus,
 		})
 		s.Stop()
 		if err != nil {

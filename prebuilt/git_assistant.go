@@ -11,14 +11,19 @@ import (
 
 type GitAssistantRequest struct {
 	Instruction string
+	GitStatus   string
 }
 
 func (req GitAssistantRequest) Encode() string {
-	return fmt.Sprintf(`{"instruction": "%s"}`, req.Instruction)
+	marshaled, err := json.Marshal(req)
+	if err != nil {
+		panic(err)
+	}
+	return string(marshaled)
 }
 
 func (req GitAssistantRequest) Schema() string {
-	return `{"instruction": "a description of what the user wants to do"}`
+	return `{"instruction": "a description of what the user wants to do", "git_status": "output of git status"}`
 }
 
 type GitAssistantResponse struct {
@@ -57,19 +62,13 @@ func NewGitAssistantAgent(engine engines.LLM) agents.Agent[GitAssistantRequest, 
 					},
 				},
 				IntermediarySteps: []*engines.ChatMessage{
-					// (&agents.ChainAgentThought{
-					// 	Content: "I should find which files are related to the try/except block.",
-					// }).Encode(engine),
 					// (&agents.ChainAgentAction{
-					// 	Tool: tools.NewBashTerminal(),
-					// 	Args: json.RawMessage(`{"command": "git status -s"}`),
+					// 	Tool: tools.NewAskUser(),
+					// 	Args: []byte(`{"question": "Should I commit only the changes to main.py? (yes/no)"}`),
 					// }).Encode(engine),
 					// (&agents.ChainAgentObservation{
-					// 	Content:  "?? main.py\n?? README.md\n",
-					// 	ToolName: tools.NewBashTerminal().Name(),
-					// }).Encode(engine),
-					// (&agents.ChainAgentThought{
-					// 	Content: "main.py is probably the only file I need to add.",
+					// 	Content:  "yes",
+					// 	ToolName: tools.NewAskUser().Name(),
 					// }).Encode(engine),
 				},
 			},
@@ -79,9 +78,18 @@ func NewGitAssistantAgent(engine engines.LLM) agents.Agent[GitAssistantRequest, 
 			if err := json.Unmarshal([]byte(msg), &resp); err != nil {
 				return GitAssistantResponse{}, fmt.Errorf("failed to parse response: %w", err)
 			}
+			if len(resp.Operations) == 0 {
+				var operations map[string]string
+				if err := json.Unmarshal([]byte(msg), &operations); err != nil {
+					return GitAssistantResponse{}, fmt.Errorf("failed to parse response: %w", err)
+				}
+				resp.Operations = operations
+			}
 			return resp, nil
 		},
 	}
-	agent := agents.NewChainAgent(engine, task, memory.NewBufferedMemory(10)).WithMaxSolutionAttempts(12).WithTools()
+	agent := agents.NewChainAgent(engine, task, memory.NewBufferedMemory(10)).WithMaxSolutionAttempts(12).WithTools(
+	// tools.NewAskUser(),
+	)
 	return agent
 }
