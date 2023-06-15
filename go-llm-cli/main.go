@@ -148,7 +148,7 @@ var gitAssistantCmd = &cobra.Command{
 	Use:   "git-assistant INSTRUCTION",
 	Short: "A git assistant.",
 	Run: func(cmd *cobra.Command, args []string) {
-		// log.SetLevel(log.InfoLevel)
+		log.SetLevel(log.InfoLevel)
 		s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
 		s.Suffix = " Just a moment..."
 		s.Start()
