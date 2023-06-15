@@ -26,8 +26,13 @@ func (req GitAssistantRequest) Schema() string {
 	return `{"instruction": "a description of what the user wants to do", "git_status": "output of git status"}`
 }
 
+type GitOperation struct {
+	Operation string `json:"operation"`
+	Reasoning string `json:"reasoning"`
+}
+
 type GitAssistantResponse struct {
-	Operations map[string]string `json:"operations"`
+	Operations []GitOperation `json:"operations"`
 }
 
 func (resp GitAssistantResponse) Encode() string {
@@ -39,7 +44,7 @@ func (resp GitAssistantResponse) Encode() string {
 }
 
 func (resp GitAssistantResponse) Schema() string {
-	return `{"operations": {"git command": "why it was used"}}`
+	return `{"operations": [{"operation": "git command", "reasoning": "reason for command"}]}`
 }
 
 func NewGitAssistantAgent(engine engines.LLM) agents.Agent[GitAssistantRequest, GitAssistantResponse] {
@@ -55,10 +60,19 @@ func NewGitAssistantAgent(engine engines.LLM) agents.Agent[GitAssistantRequest, 
 					Instruction: "I added a try/except block to main.py, and now I want to push the changes to GitHub.",
 				},
 				Answer: GitAssistantResponse{
-					Operations: map[string]string{
-						"git add main.py":                          "add relevant files to staging area",
-						"git commit -m \"added try/except block\"": "commit changes",
-						"git push": "push changes to remote (GitHub)",
+					Operations: []GitOperation{
+						{
+							Operation: "git add main.py",
+							Reasoning: "add relevant files to staging area",
+						},
+						{
+							Operation: "git commit -m \"added try/except block\"",
+							Reasoning: "commit changes",
+						},
+						{
+							Operation: "git push",
+							Reasoning: "push changes to remote (GitHub)",
+						},
 					},
 				},
 				IntermediarySteps: []*engines.ChatMessage{
@@ -77,13 +91,6 @@ func NewGitAssistantAgent(engine engines.LLM) agents.Agent[GitAssistantRequest, 
 			var resp GitAssistantResponse
 			if err := json.Unmarshal([]byte(msg), &resp); err != nil {
 				return GitAssistantResponse{}, fmt.Errorf("failed to parse response: %w", err)
-			}
-			if len(resp.Operations) == 0 {
-				var operations map[string]string
-				if err := json.Unmarshal([]byte(msg), &operations); err != nil {
-					return GitAssistantResponse{}, fmt.Errorf("failed to parse response: %w", err)
-				}
-				resp.Operations = operations
 			}
 			return resp, nil
 		},

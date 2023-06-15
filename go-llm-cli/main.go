@@ -148,7 +148,7 @@ var gitAssistantCmd = &cobra.Command{
 	Use:   "git-assistant INSTRUCTION",
 	Short: "A git assistant.",
 	Run: func(cmd *cobra.Command, args []string) {
-		log.SetLevel(log.InfoLevel)
+		// log.SetLevel(log.InfoLevel)
 		s := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
 		s.Suffix = " Just a moment..."
 		s.Start()
@@ -174,12 +174,12 @@ var gitAssistantCmd = &cobra.Command{
 			return
 		}
 		bashTool := tools.NewBashTerminal()
-		for op, reason := range res.Operations {
-			fmt.Printf("Run %q in order to %s? (y/n) ", op, reason)
+		for _, op := range res.Operations {
+			fmt.Printf("Run %q in order to %s? (y/n) ", op.Operation, op.Reasoning)
 			var response string
 			fmt.Scanln(&response)
 			if response == "y" {
-				output, err := bashTool.Execute([]byte(fmt.Sprintf(`{"command": %q}`, op)))
+				output, err := bashTool.Execute([]byte(fmt.Sprintf(`{"command": %q}`, op.Operation)))
 				if err != nil {
 					log.Error(err)
 					return
