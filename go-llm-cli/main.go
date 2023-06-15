@@ -173,6 +173,10 @@ var gitAssistantCmd = &cobra.Command{
 			log.Error(err)
 			return
 		}
+		if len(res.Operations) == 0 {
+			log.Errorf("Oopsy, it appears like I produced no operations to run. Pleas try again.")
+			return
+		}
 		bashTool := tools.NewBashTerminal()
 		for _, op := range res.Operations {
 			fmt.Printf("Run %q in order to %s? (y/n) ", op.Operation, op.Reasoning)
