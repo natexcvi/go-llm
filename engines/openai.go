@@ -19,12 +19,14 @@ type GPT struct {
 	CompletionTokenLimit int
 	TotalTokenLimit      int
 	functions            []FunctionSpecs
+	Temperature          float64
 }
 
 type ChatCompletionRequest struct {
-	Model     string          `json:"model"`
-	Messages  []*ChatMessage  `json:"messages"`
-	Functions []FunctionSpecs `json:"functions,omitempty"`
+	Model       string          `json:"model"`
+	Temperature float64         `json:"temperature,omitempty"`
+	Messages    []*ChatMessage  `json:"messages"`
+	Functions   []FunctionSpecs `json:"functions,omitempty"`
 }
 
 type ChatCompletionResponse struct {
@@ -42,8 +44,9 @@ func (gpt *GPT) predict(prompt *ChatPrompt, useFunctions bool) (*ChatMessage, er
 		return nil, ErrTokenLimitExceeded
 	}
 	completionRequest := ChatCompletionRequest{
-		Model:    gpt.Model,
-		Messages: prompt.History,
+		Model:       gpt.Model,
+		Messages:    prompt.History,
+		Temperature: gpt.Temperature,
 	}
 	if useFunctions {
 		completionRequest.Functions = gpt.functions
@@ -101,13 +104,17 @@ func (gpt *GPT) parseResponseBody(body io.Reader) (*ChatMessage, error) {
 	if len(response.Choices) == 0 {
 		return nil, fmt.Errorf("no choices in response: %s", buf.String())
 	}
+	if response.Choices[0].Message.FunctionCall == nil && response.Choices[0].Message.Text == "" {
+		return nil, fmt.Errorf("no content in response: %s", buf.String())
+	}
 	return response.Choices[0].Message, nil
 }
 
 func NewGPTEngine(apiToken string, model string) *GPT {
 	return &GPT{
-		APIToken: apiToken,
-		Model:    model,
+		APIToken:    apiToken,
+		Model:       model,
+		Temperature: 1,
 	}
 }
 
@@ -123,5 +130,10 @@ func (gpt *GPT) WithCompletionTokenLimit(limit int) *GPT {
 
 func (gpt *GPT) WithTotalTokenLimit(limit int) *GPT {
 	gpt.TotalTokenLimit = limit
+	return gpt
+}
+
+func (gpt *GPT) WithTemperature(temperature float64) *GPT {
+	gpt.Temperature = temperature
 	return gpt
 }
