@@ -101,11 +101,11 @@ func TestChainAgent(t *testing.T) {
 					Responses: []*engines.ChatMessage{
 						{
 							Role: engines.ConvRoleAssistant,
-							Text: `ACT: echo("world")`,
+							Text: `Action: echo("world")`,
 						},
 						{
 							Role: engines.ConvRoleAssistant,
-							Text: `ANS: "Hello world"`,
+							Text: `Answer: "Hello world"`,
 						},
 					},
 				},
@@ -157,7 +157,7 @@ func TestChainAgent(t *testing.T) {
 						},
 						{
 							Role: engines.ConvRoleAssistant,
-							Text: `ANS: "Hello world"`,
+							Text: `Answer: "Hello world"`,
 						},
 					},
 				},
@@ -206,19 +206,19 @@ func TestChainAgent(t *testing.T) {
 					Responses: []*engines.ChatMessage{
 						{
 							Role: engines.ConvRoleAssistant,
-							Text: `ACT: echo("world")`,
+							Text: `Action: echo("world")`,
 						},
 						{
 							Role: engines.ConvRoleAssistant,
-							Text: `ANS: ""`,
+							Text: `Answer: ""`,
 						},
 						{
 							Role: engines.ConvRoleAssistant,
-							Text: `THT: That's right, the output is empty. I'll fix it`,
+							Text: `Thought: That's right, the output is empty. I'll fix it`,
 						},
 						{
 							Role: engines.ConvRoleAssistant,
-							Text: `ANS: "Hello world"`,
+							Text: `Answer: "Hello world"`,
 						},
 					},
 				},
