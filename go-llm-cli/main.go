@@ -26,10 +26,6 @@ var (
 var rootCmd = &cobra.Command{
 	Use:   "go-llm",
 	Short: "A CLI for using the prebuilt agents.",
-	// Long: ``,
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("root command")
-	},
 }
 
 var codeRefactorAgent = &cobra.Command{
