@@ -17,11 +17,11 @@ import (
 )
 
 const (
-	ThoughtCode     = "THT"
-	ActionCode      = "ACT"
-	AnswerCode      = "ANS"
-	ErrorCode       = "ERR"
-	ObservationCode = "OBS"
+	ThoughtCode     = "Thought"
+	ActionCode      = "Action"
+	AnswerCode      = "Answer"
+	ErrorCode       = "Error"
+	ObservationCode = "Observation"
 	EndMarker       = "<END>"
 	MessageFormat   = "%s: %s<END>"
 	MessagePrefix   = "%s: "
@@ -29,8 +29,8 @@ const (
 
 var (
 	actionRegex              = regexp.MustCompile(`^(?P<tool>.*?)\((?P<args>[\s\S]*)\)`)
-	operationRegex           = regexp.MustCompile(`(?P<code>[A-Z]{3}):\s*(?P<content>[\s\S]*)(?:<END>)`)
-	operationRegexWithoutEnd = regexp.MustCompile(`(?P<code>[A-Z]{3}):\s*(?P<content>[\s\S]*)`)
+	operationRegex           = regexp.MustCompile(`(?P<code>[A-Za-z]+):\s*(?P<content>[\s\S]*)(?:<END>)`)
+	operationRegexWithoutEnd = regexp.MustCompile(`(?P<code>[A-Za-z]+):\s*(?P<content>[\s\S]*)`)
 )
 
 var (

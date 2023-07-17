@@ -39,11 +39,12 @@ func (task *Task[T, S]) Compile(input T, tools map[string]tools.Tool) *engines.C
 				Text: fmt.Sprintf("You are a smart, autonomous agent given the task below. "+
 					"You will be given input from the user in the following format:\n\n"+
 					"%s\n\n Complete the task step-by-step, "+
-					"reasoning about your solution steps by sending a message in format "+
+					"reasoning about your solution steps by sending thought messages in format "+
 					"`%s: (your reflection)%s`. When you are ready to return your response, "+
-					"send a message in format `%s: %s%s`. Remember: you are on your own - "+
+					"send an answer message in format `%s: %s%s`. Remember: you are on your own - "+
 					"do not ask for any clarifications, except by using appropriate tools "+
-					"that enable interaction with the user.",
+					"that enable interaction with the user. You should determine when you are "+
+					"done with the task, and return your answer.",
 					input.Schema(), ThoughtCode, EndMarker, AnswerCode, answerSchema, EndMarker),
 			},
 		},

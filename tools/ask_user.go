@@ -9,7 +9,8 @@ import (
 )
 
 type AskUser struct {
-	source io.Reader
+	source          io.Reader
+	questionHandler func(question string) (string, error)
 }
 
 func (b *AskUser) Execute(args json.RawMessage) (json.RawMessage, error) {
@@ -20,8 +21,13 @@ func (b *AskUser) Execute(args json.RawMessage) (json.RawMessage, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println(command.Question)
-	answer, err := b.readUserInput()
+	var answer string
+	if b.questionHandler != nil {
+		answer, err = b.questionHandler(command.Question)
+	} else {
+		fmt.Println(command.Question)
+		answer, err = b.readUserInput()
+	}
 	if err != nil {
 		if errors.Is(err, io.EOF) {
 			return nil, fmt.Errorf("the user did not provide an answer")
@@ -74,4 +80,9 @@ func NewAskUserWithSource(source io.Reader) *AskUser {
 	return &AskUser{
 		source: source,
 	}
+}
+
+func (b *AskUser) WithCustomQuestionHandler(handler func(question string) (string, error)) *AskUser {
+	b.questionHandler = handler
+	return b
 }

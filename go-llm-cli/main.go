@@ -9,9 +9,11 @@ import (
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/briandowns/spinner"
+	"github.com/natexcvi/go-llm/agents"
 	"github.com/natexcvi/go-llm/engines"
 	"github.com/natexcvi/go-llm/prebuilt"
 	"github.com/natexcvi/go-llm/tools"
+	"github.com/samber/lo"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -158,8 +160,41 @@ var gitAssistantCmd = &cobra.Command{
 			log.Errorf("OPENAI_API_KEY environment variable not set")
 			return
 		}
-		engine := engines.NewGPTEngine(apiKey, gptModel)
-		agent := prebuilt.NewGitAssistantAgent(engine)
+		engine := engines.NewGPTEngine(apiKey, gptModel).WithTemperature(0)
+		agent := prebuilt.NewGitAssistantAgent(engine, func(action *agents.ChainAgentAction) bool {
+			isGitCommand := action.Tool.Name() == "git"
+			if !isGitCommand {
+				return true
+			}
+			s.Stop()
+			var command struct {
+				Command string `json:"command"`
+				Reason  string `json:"reason"`
+			}
+			err := json.Unmarshal(action.Args, &command)
+			if err != nil {
+				return false
+			}
+			shouldRun := false
+			prompt := &survey.Confirm{
+				Message: fmt.Sprintf("Run %q%s?", command.Command, lo.If(
+					command.Reason != "",
+					fmt.Sprintf(" in order to %s", command.Reason),
+				).Else("")),
+			}
+			survey.AskOne(prompt, &shouldRun)
+			s.Start()
+			return shouldRun
+		}, tools.NewAskUser().WithCustomQuestionHandler(func(question string) (string, error) {
+			s.Stop()
+			prompt := survey.Input{
+				Message: question,
+			}
+			var response string
+			survey.AskOne(&prompt, &response)
+			s.Start()
+			return response, nil
+		}))
 		gitStatus, err := gitStatus()
 		if err != nil {
 			log.Error(err)
@@ -168,40 +203,14 @@ var gitAssistantCmd = &cobra.Command{
 		res, err := agent.Run(prebuilt.GitAssistantRequest{
 			Instruction: args[0],
 			GitStatus:   gitStatus,
+			CurrentDate: time.Now().Format(time.RFC3339),
 		})
 		s.Stop()
 		if err != nil {
 			log.Error(err)
 			return
 		}
-		if len(res.Operations) == 0 {
-			log.Errorf("Oopsy, it appears like I produced no operations to run. Pleas try again.")
-			return
-		}
-		bashTool := tools.NewBashTerminal()
-		for _, op := range res.Operations {
-			shouldRun := false
-			prompt := &survey.Confirm{
-				Message: fmt.Sprintf("Run %q in order to %s?", op.Operation, op.Reasoning),
-			}
-			survey.AskOne(prompt, &shouldRun)
-			if !shouldRun {
-				fmt.Printf("Command skipped.\n")
-				continue
-			}
-			output, err := bashTool.Execute([]byte(fmt.Sprintf(`{"command": %q}`, op.Operation)))
-			if err != nil {
-				log.Error(err)
-				return
-			}
-			var unmarshaledOutput string
-			err = json.Unmarshal(output, &unmarshaledOutput)
-			if err != nil {
-				log.Error(err)
-				return
-			}
-			fmt.Printf("%s\n", unmarshaledOutput)
-		}
+		log.Info(res)
 	},
 	Args: cobra.ExactArgs(1),
 }

@@ -3,15 +3,44 @@ package prebuilt
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/natexcvi/go-llm/agents"
 	"github.com/natexcvi/go-llm/engines"
 	"github.com/natexcvi/go-llm/memory"
+	"github.com/natexcvi/go-llm/tools"
+)
+
+var (
+	gitTool = tools.NewGenericTool(
+		"git",
+		"A tool for executing git commands.",
+		json.RawMessage(`{"command": "the git command to execute", "reason": "explain why you are executing this command, e.g. 'add a file to the staging area''"}`),
+		func(args json.RawMessage) (json.RawMessage, error) {
+			var command struct {
+				Command string `json:"command"`
+				Reason  string `json:"reason"`
+			}
+			err := json.Unmarshal(args, &command)
+			if err != nil {
+				return nil, err
+			}
+			if strings.HasPrefix(command.Command, "git ") {
+				command.Command = command.Command[4:]
+			}
+			out, err := tools.NewBashTerminal().Execute([]byte(fmt.Sprintf(`{"command": "git %s"}`, command.Command)))
+			if err != nil {
+				return nil, err
+			}
+			return json.Marshal(string(out))
+		},
+	)
 )
 
 type GitAssistantRequest struct {
 	Instruction string
 	GitStatus   string
+	CurrentDate string
 }
 
 func (req GitAssistantRequest) Encode() string {
@@ -26,28 +55,23 @@ func (req GitAssistantRequest) Schema() string {
 	return `{"instruction": "a description of what the user wants to do", "git_status": "output of git status"}`
 }
 
-type GitOperation struct {
-	Operation string `json:"operation"`
-	Reasoning string `json:"reasoning"`
-}
-
 type GitAssistantResponse struct {
-	Operations []GitOperation `json:"operations"`
+	Summary string `json:"summary"`
 }
 
 func (resp GitAssistantResponse) Encode() string {
-	marshalled, err := json.Marshal(resp.Operations)
+	marshaled, err := json.Marshal(resp)
 	if err != nil {
 		panic(err)
 	}
-	return string(marshalled)
+	return string(marshaled)
 }
 
 func (resp GitAssistantResponse) Schema() string {
-	return `{"operations": [{"operation": "git command", "reasoning": "reason for command"}]}`
+	return `{"summary": "a summary of the git operations performed"}`
 }
 
-func NewGitAssistantAgent(engine engines.LLM) agents.Agent[GitAssistantRequest, GitAssistantResponse] {
+func NewGitAssistantAgent(engine engines.LLM, actionConfirmationHook func(action *agents.ChainAgentAction) bool, additionalTools ...tools.Tool) agents.Agent[GitAssistantRequest, GitAssistantResponse] {
 	task := &agents.Task[GitAssistantRequest, GitAssistantResponse]{
 		Description: "You will be given an instruction for some operation " +
 			"to be performed with git. Your task is to perform the operation, " +
@@ -60,43 +84,27 @@ func NewGitAssistantAgent(engine engines.LLM) agents.Agent[GitAssistantRequest, 
 					Instruction: "I added a try/except block to main.py, and now I want to push the changes to GitHub.",
 				},
 				Answer: GitAssistantResponse{
-					Operations: []GitOperation{
-						{
-							Operation: "git add main.py",
-							Reasoning: "add relevant files to staging area",
-						},
-						{
-							Operation: "git commit -m \"added try/except block\"",
-							Reasoning: "commit changes",
-						},
-						{
-							Operation: "git push",
-							Reasoning: "push changes to remote (GitHub)",
-						},
-					},
+					Summary: "I pushed the changes to GitHub.",
 				},
 				IntermediarySteps: []*engines.ChatMessage{
-					// (&agents.ChainAgentAction{
-					// 	Tool: tools.NewAskUser(),
-					// 	Args: []byte(`{"question": "Should I commit only the changes to main.py? (yes/no)"}`),
-					// }).Encode(engine),
-					// (&agents.ChainAgentObservation{
-					// 	Content:  "yes",
-					// 	ToolName: tools.NewAskUser().Name(),
-					// }).Encode(engine),
+					(&agents.ChainAgentAction{
+						Tool: gitTool,
+						Args: []byte(`{"command": "push", "reason": "push the changes to GitHub"}`),
+					}).Encode(engine),
 				},
 			},
 		},
 		AnswerParser: func(msg string) (GitAssistantResponse, error) {
 			var resp GitAssistantResponse
 			if err := json.Unmarshal([]byte(msg), &resp); err != nil {
-				return GitAssistantResponse{}, fmt.Errorf("failed to parse response: %w", err)
+				resp.Summary = msg
 			}
 			return resp, nil
 		},
 	}
-	agent := agents.NewChainAgent(engine, task, memory.NewBufferedMemory(10)).WithMaxSolutionAttempts(12).WithTools(
-	// tools.NewAskUser(),
-	)
+	additionalTools = append(additionalTools, gitTool)
+	agent := agents.NewChainAgent(engine, task, memory.NewBufferedMemory(10)).WithMaxSolutionAttempts(15).WithTools(
+		additionalTools...,
+	).WithActionConfirmation(actionConfirmationHook)
 	return agent
 }
