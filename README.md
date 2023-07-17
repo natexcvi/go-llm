@@ -3,6 +3,8 @@
 
 Integrate the power of large language models (LLM) into your Go application.
 
+This project aims to abstract away much of the plumbing (free text to structured data, contextual memory, tool wrapping, retry logic, etc.) so you can focus on the business logic of your agent.
+
 ```mermaid
 graph LR
     subgraph Input
