@@ -3,6 +3,23 @@
 
 Integrate the power of large language models (LLM) into your Go application.
 
+```mermaid
+graph LR
+    subgraph Input
+    A[Structured Input] --> B[Compiled Task]
+    end
+    subgraph LLM-Based Agent
+    C[Task Template] --> B[Compiled Task]
+    B --> D((Agent))
+    D --"Reasoning"--> D
+    D --"Action"--> E[Environment]
+    E --"Observation"--> D
+    end
+    subgraph Output
+    D --> F[Structured Output]
+    end
+```
+
 ## Usage Example
 ```go
 package main
