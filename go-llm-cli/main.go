@@ -210,7 +210,7 @@ var gitAssistantCmd = &cobra.Command{
 			log.Error(err)
 			return
 		}
-		log.Info(res)
+		fmt.Println(res.Summary)
 	},
 	Args: cobra.ExactArgs(1),
 }
