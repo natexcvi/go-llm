@@ -14,11 +14,11 @@ graph LR
     D --"Reasoning"--> D
     D --"Action"--> E[Environment]
     E --"Observation"--> D
-    D --> G[Output Validators]
+    D --"Answer"--> G[Output Validators]
     G --> D
     end
     subgraph Output
-    G --> F[Structured Output]
+    G --"Answer"--> F[Structured Output]
     end
 ```
 
