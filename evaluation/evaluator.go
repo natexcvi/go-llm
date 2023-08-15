@@ -9,10 +9,6 @@ type Options[Input, Output any] struct {
 	Repetitions      int
 }
 
-type evaluator[Input, Output any] interface {
-	Evaluate(TestPack []Input) ([]float64, error)
-}
-
 type Tester[Input, Output any] interface {
 	Test(test Input) (Output, error)
 }
