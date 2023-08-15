@@ -18,7 +18,6 @@ type GPT struct {
 	PromptTokenLimit     int
 	CompletionTokenLimit int
 	TotalTokenLimit      int
-	functions            []FunctionSpecs
 	Temperature          float64
 }
 
@@ -39,7 +38,7 @@ type ChatCompletionResponse struct {
 	} `json:"usage"`
 }
 
-func (gpt *GPT) chat(prompt *ChatPrompt, useFunctions bool) (*ChatMessage, error) {
+func (gpt *GPT) chat(prompt *ChatPrompt, functions []FunctionSpecs) (*ChatMessage, error) {
 	if gpt.isLimitExceeded() {
 		return nil, ErrTokenLimitExceeded
 	}
@@ -48,8 +47,8 @@ func (gpt *GPT) chat(prompt *ChatPrompt, useFunctions bool) (*ChatMessage, error
 		Messages:    prompt.History,
 		Temperature: gpt.Temperature,
 	}
-	if useFunctions {
-		completionRequest.Functions = gpt.functions
+	if len(functions) > 0 {
+		completionRequest.Functions = functions
 	}
 	bodyJSON, err := json.Marshal(completionRequest)
 	if err != nil {
@@ -73,16 +72,12 @@ func (gpt *GPT) chat(prompt *ChatPrompt, useFunctions bool) (*ChatMessage, error
 	return gpt.parseResponseBody(res.Body)
 }
 
-func (gpt *GPT) SetFunctions(funcs ...FunctionSpecs) {
-	gpt.functions = funcs
-}
-
-func (gpt *GPT) ChatWithFunctions(prompt *ChatPrompt) (*ChatMessage, error) {
-	return gpt.chat(prompt, true)
+func (gpt *GPT) ChatWithFunctions(prompt *ChatPrompt, functions []FunctionSpecs) (*ChatMessage, error) {
+	return gpt.chat(prompt, functions)
 }
 
 func (gpt *GPT) Chat(prompt *ChatPrompt) (*ChatMessage, error) {
-	return gpt.chat(prompt, false)
+	return gpt.chat(prompt, nil)
 }
 
 func (gpt *GPT) isLimitExceeded() bool {
