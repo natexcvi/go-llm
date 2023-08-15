@@ -7,7 +7,6 @@ type GoodnessFunction[Input, Output any] func(input Input, output Output) float6
 type Options[Input, Output any] struct {
 	GoodnessFunction GoodnessFunction[Input, Output]
 	Repetitions      int
-	MaximumTokens    int
 }
 
 type evaluator[Input, Output any] interface {
@@ -15,7 +14,7 @@ type evaluator[Input, Output any] interface {
 }
 
 type Tester[Input, Output any] interface {
-	test(test Input) (Output, error)
+	Test(test Input) (Output, error)
 }
 
 type Evaluator[Input, Output any] struct {
@@ -30,13 +29,13 @@ func NewEvaluator[Input, Output any](tester Tester[Input, Output], options *Opti
 	}
 }
 
-func (e *Evaluator[Input, Output]) Evaluate(TestPack []Input) ([]float64, error) {
+func (e *Evaluator[Input, Output]) Evaluate(testPack []Input) ([]float64, error) {
 	channels := make([]chan []float64, e.options.Repetitions)
 
 	for i := 0; i < e.options.Repetitions; i++ {
 		channels[i] = make(chan []float64)
 		go func(i int) {
-			report, err := e.evaluate(TestPack)
+			report, err := e.evaluate(testPack)
 			if err != nil {
 				channels[i] <- nil
 				return
@@ -50,8 +49,8 @@ func (e *Evaluator[Input, Output]) Evaluate(TestPack []Input) ([]float64, error)
 		responses[i] = <-channels[i]
 	}
 
-	report := make([]float64, len(TestPack))
-	for i := 0; i < len(TestPack); i++ {
+	report := make([]float64, len(testPack))
+	for i := 0; i < len(testPack); i++ {
 		sum := 0.0
 		for j := 0; j < e.options.Repetitions; j++ {
 			sum += responses[j][i]
@@ -80,7 +79,7 @@ func (e *Evaluator[Input, Output]) test(testPack []Input) ([]Output, error) {
 	responses := make([]Output, len(testPack))
 
 	for i, test := range testPack {
-		response, err := e.tester.test(test)
+		response, err := e.tester.Test(test)
 		if err != nil {
 			return nil, fmt.Errorf("failed to test case: %w", err)
 		}

@@ -12,6 +12,6 @@ func NewLLMTester(llm engines.LLM) Tester[*engines.ChatPrompt, *engines.ChatMess
 	}
 }
 
-func (t *llmTester) test(test *engines.ChatPrompt) (*engines.ChatMessage, error) {
+func (t *llmTester) Test(test *engines.ChatPrompt) (*engines.ChatMessage, error) {
 	return t.llm.Chat(test)
 }
