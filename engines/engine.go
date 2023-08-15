@@ -7,12 +7,7 @@ type LLM interface {
 
 type LLMWithFunctionCalls interface {
 	LLM
-	// Define functions that can be called by the LLM
-	// using native function call functionality.
-	// Overrides any previously defined functions.
-	// Call this before calling `ChatWithFunctions`.
-	SetFunctions(funcs ...FunctionSpecs)
-	ChatWithFunctions(prompt *ChatPrompt) (*ChatMessage, error)
+	ChatWithFunctions(prompt *ChatPrompt, functions []FunctionSpecs) (*ChatMessage, error)
 }
 
 type ParameterSpecs struct {

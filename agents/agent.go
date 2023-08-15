@@ -151,6 +151,7 @@ type ChainAgent[T Representable, S Representable] struct {
 	Memory                 memory.Memory
 	ActionConfirmation     func(action *ChainAgentAction) bool
 	ActionArgPreprocessors []toolsPkg.PreprocessingTool
+	nativeFunctionSpecs    []engines.FunctionSpecs
 }
 
 type ChainAgentMessage interface {
@@ -311,9 +312,9 @@ func (a *ChainAgent[T, S]) logMessages(msg ...*engines.ChatMessage) {
 	}
 }
 
-func (a *ChainAgent[T, S]) predict(prompt *engines.ChatPrompt) (*engines.ChatMessage, error) {
+func (a *ChainAgent[T, S]) chat(prompt *engines.ChatPrompt) (*engines.ChatMessage, error) {
 	if engine, ok := a.Engine.(engines.LLMWithFunctionCalls); ok {
-		return engine.ChatWithFunctions(prompt)
+		return engine.ChatWithFunctions(prompt, a.nativeFunctionSpecs)
 	}
 	return a.Engine.Chat(prompt)
 }
@@ -336,7 +337,7 @@ func (a *ChainAgent[T, S]) run(input T) (output S, err error) {
 	if err != nil {
 		return output, fmt.Errorf("failed to add prompt to memory: %w", err)
 	}
-	response, err := a.predict(taskPrompt)
+	response, err := a.chat(taskPrompt)
 	if err != nil {
 		return output, fmt.Errorf("failed to predict response: %w", err)
 	}
@@ -359,7 +360,7 @@ func (a *ChainAgent[T, S]) run(input T) (output S, err error) {
 		if a.MaxSolutionAttempts > 0 && stepsExecuted > a.MaxSolutionAttempts {
 			return output, errors.New("max solution attempts reached")
 		}
-		response, err = a.predict(prompt)
+		response, err = a.chat(prompt)
 		if err != nil {
 			return output, fmt.Errorf("failed to predict response: %w", err)
 		}
@@ -395,7 +396,7 @@ func NewChainAgent[T Representable, S Representable](engine engines.LLM, task *T
 }
 
 func (a *ChainAgent[T, S]) setNativeLLMFunctions(tools ...toolsPkg.Tool) (err error) {
-	engineWithFunctions, ok := a.Engine.(engines.LLMWithFunctionCalls)
+	_, ok := a.Engine.(engines.LLMWithFunctionCalls)
 	if !ok {
 		return errNativeFunctionsUnsupported
 	}
@@ -407,7 +408,7 @@ func (a *ChainAgent[T, S]) setNativeLLMFunctions(tools ...toolsPkg.Tool) (err er
 		}
 		functions[i] = function
 	}
-	engineWithFunctions.SetFunctions(functions...)
+	a.nativeFunctionSpecs = functions
 	return nil
 }
 
