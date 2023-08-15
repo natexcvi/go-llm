@@ -9,6 +9,7 @@ import (
 )
 
 var ErrTokenLimitExceeded = fmt.Errorf("token limit exceeded")
+var OpenAIBaseURL = "https://api.openai.com"
 
 type GPT struct {
 	APIToken             string
@@ -56,7 +57,7 @@ func (gpt *GPT) chat(prompt *ChatPrompt, functions []FunctionSpecs) (*ChatMessag
 	}
 	req, err := http.NewRequest(
 		"POST",
-		"https://api.openai.com/v1/chat/completions",
+		fmt.Sprintf("%s/v1/chat/completions", OpenAIBaseURL),
 		bytes.NewBuffer([]byte(bodyJSON)),
 	)
 	if err != nil {
