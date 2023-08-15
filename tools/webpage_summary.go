@@ -75,7 +75,7 @@ func (w *WebpageSummary) summariseContent(url, focusOn string) (string, error) {
 			},
 		},
 	}
-	summary, err := w.model.Predict(&prompt)
+	summary, err := w.model.Chat(&prompt)
 	if err != nil {
 		return "", fmt.Errorf("failed to predict: %w", err)
 	}

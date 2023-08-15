@@ -92,7 +92,7 @@ func TestJSONAutoFixer_Process(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			engineMock := enginemocks.NewMockLLM(ctrl)
 			i := -1
-			engineMock.EXPECT().Predict(gomock.Any()).DoAndReturn(func(prompt *engines.ChatPrompt) (*engines.ChatMessage, error) {
+			engineMock.EXPECT().Chat(gomock.Any()).DoAndReturn(func(prompt *engines.ChatPrompt) (*engines.ChatMessage, error) {
 				i++
 				return &engines.ChatMessage{
 					Role: engines.ConvRoleAssistant,

@@ -67,7 +67,7 @@ func (t *JSONAutoFixer) Process(args json.RawMessage) (json.RawMessage, error) {
 	prompt := t.prompt(args)
 	var cumErr *multierror.Error
 	for i := 0; i < t.maxRetries; i++ {
-		resp, err := t.engine.Predict(prompt)
+		resp, err := t.engine.Chat(prompt)
 		if err != nil {
 			return nil, fmt.Errorf("error running JSON auto fixer: %w", err)
 		}

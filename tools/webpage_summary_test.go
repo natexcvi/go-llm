@@ -92,7 +92,7 @@ func TestWebpageSumamry(t *testing.T) {
 			strippedPageContent := (&WebpageSummary{}).stripHTMLTags(
 				string(readTestFile(t, tc.pageContentPath)),
 			)
-			mockEngine.EXPECT().Predict(
+			mockEngine.EXPECT().Chat(
 				gomock.Matcher(&promptMatcher{expected: strippedPageContent}),
 			).Return(&engines.ChatMessage{
 				Role: engines.ConvRoleAssistant,

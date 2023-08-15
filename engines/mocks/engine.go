@@ -34,17 +34,86 @@ func (m *MockLLM) EXPECT() *MockLLMMockRecorder {
 	return m.recorder
 }
 
-// Predict mocks base method.
-func (m *MockLLM) Predict(prompt *engines.ChatPrompt) (*engines.ChatMessage, error) {
+// Chat mocks base method.
+func (m *MockLLM) Chat(prompt *engines.ChatPrompt) (*engines.ChatMessage, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Predict", prompt)
+	ret := m.ctrl.Call(m, "Chat", prompt)
 	ret0, _ := ret[0].(*engines.ChatMessage)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// Predict indicates an expected call of Predict.
-func (mr *MockLLMMockRecorder) Predict(prompt interface{}) *gomock.Call {
+// Chat indicates an expected call of Chat.
+func (mr *MockLLMMockRecorder) Chat(prompt interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Predict", reflect.TypeOf((*MockLLM)(nil).Predict), prompt)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Chat", reflect.TypeOf((*MockLLM)(nil).Chat), prompt)
+}
+
+// MockLLMWithFunctionCalls is a mock of LLMWithFunctionCalls interface.
+type MockLLMWithFunctionCalls struct {
+	ctrl     *gomock.Controller
+	recorder *MockLLMWithFunctionCallsMockRecorder
+}
+
+// MockLLMWithFunctionCallsMockRecorder is the mock recorder for MockLLMWithFunctionCalls.
+type MockLLMWithFunctionCallsMockRecorder struct {
+	mock *MockLLMWithFunctionCalls
+}
+
+// NewMockLLMWithFunctionCalls creates a new mock instance.
+func NewMockLLMWithFunctionCalls(ctrl *gomock.Controller) *MockLLMWithFunctionCalls {
+	mock := &MockLLMWithFunctionCalls{ctrl: ctrl}
+	mock.recorder = &MockLLMWithFunctionCallsMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockLLMWithFunctionCalls) EXPECT() *MockLLMWithFunctionCallsMockRecorder {
+	return m.recorder
+}
+
+// Chat mocks base method.
+func (m *MockLLMWithFunctionCalls) Chat(prompt *engines.ChatPrompt) (*engines.ChatMessage, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Chat", prompt)
+	ret0, _ := ret[0].(*engines.ChatMessage)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Chat indicates an expected call of Chat.
+func (mr *MockLLMWithFunctionCallsMockRecorder) Chat(prompt interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Chat", reflect.TypeOf((*MockLLMWithFunctionCalls)(nil).Chat), prompt)
+}
+
+// ChatWithFunctions mocks base method.
+func (m *MockLLMWithFunctionCalls) ChatWithFunctions(prompt *engines.ChatPrompt) (*engines.ChatMessage, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ChatWithFunctions", prompt)
+	ret0, _ := ret[0].(*engines.ChatMessage)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ChatWithFunctions indicates an expected call of ChatWithFunctions.
+func (mr *MockLLMWithFunctionCallsMockRecorder) ChatWithFunctions(prompt interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ChatWithFunctions", reflect.TypeOf((*MockLLMWithFunctionCalls)(nil).ChatWithFunctions), prompt)
+}
+
+// SetFunctions mocks base method.
+func (m *MockLLMWithFunctionCalls) SetFunctions(funcs ...engines.FunctionSpecs) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{}
+	for _, a := range funcs {
+		varargs = append(varargs, a)
+	}
+	m.ctrl.Call(m, "SetFunctions", varargs...)
+}
+
+// SetFunctions indicates an expected call of SetFunctions.
+func (mr *MockLLMWithFunctionCallsMockRecorder) SetFunctions(funcs ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetFunctions", reflect.TypeOf((*MockLLMWithFunctionCalls)(nil).SetFunctions), funcs...)
 }

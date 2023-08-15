@@ -313,9 +313,9 @@ func (a *ChainAgent[T, S]) logMessages(msg ...*engines.ChatMessage) {
 
 func (a *ChainAgent[T, S]) predict(prompt *engines.ChatPrompt) (*engines.ChatMessage, error) {
 	if engine, ok := a.Engine.(engines.LLMWithFunctionCalls); ok {
-		return engine.PredictWithFunctions(prompt)
+		return engine.ChatWithFunctions(prompt)
 	}
-	return a.Engine.Predict(prompt)
+	return a.Engine.Chat(prompt)
 }
 
 func (a *ChainAgent[T, S]) run(input T) (output S, err error) {

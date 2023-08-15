@@ -19,7 +19,7 @@ type MockEngine struct {
 	Functions []engines.FunctionSpecs
 }
 
-func (engine *MockEngine) Predict(prompt *engines.ChatPrompt) (*engines.ChatMessage, error) {
+func (engine *MockEngine) Chat(prompt *engines.ChatPrompt) (*engines.ChatMessage, error) {
 	if len(engine.Responses) == 0 {
 		return nil, errors.New("no more responses")
 	}

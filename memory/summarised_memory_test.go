@@ -94,7 +94,7 @@ func TestSummarisedMemory(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			engineMock := enginemocks.NewMockLLM(ctrl)
 			memState := tc.currentMemoryState
-			engineMock.EXPECT().Predict(gomock.Any()).AnyTimes().DoAndReturn(func(prompt *engines.ChatPrompt) (*engines.ChatMessage, error) {
+			engineMock.EXPECT().Chat(gomock.Any()).AnyTimes().DoAndReturn(func(prompt *engines.ChatPrompt) (*engines.ChatMessage, error) {
 				newMessages := prompt.History[2 : len(prompt.History)-1]
 				newMessagesEnc := strings.Join(lo.Map(newMessages, func(msg *engines.ChatMessage, _ int) string {
 					return msg.Text

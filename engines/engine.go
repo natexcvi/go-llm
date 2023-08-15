@@ -2,13 +2,17 @@ package engines
 
 //go:generate mockgen -source=engine.go -destination=mocks/engine.go -package=mocks
 type LLM interface {
-	Predict(prompt *ChatPrompt) (*ChatMessage, error)
+	Chat(prompt *ChatPrompt) (*ChatMessage, error)
 }
 
 type LLMWithFunctionCalls interface {
 	LLM
+	// Define functions that can be called by the LLM
+	// using native function call functionality.
+	// Overrides any previously defined functions.
+	// Call this before calling `ChatWithFunctions`.
 	SetFunctions(funcs ...FunctionSpecs)
-	PredictWithFunctions(prompt *ChatPrompt) (*ChatMessage, error)
+	ChatWithFunctions(prompt *ChatPrompt) (*ChatMessage, error)
 }
 
 type ParameterSpecs struct {

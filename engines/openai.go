@@ -39,7 +39,7 @@ type ChatCompletionResponse struct {
 	} `json:"usage"`
 }
 
-func (gpt *GPT) predict(prompt *ChatPrompt, useFunctions bool) (*ChatMessage, error) {
+func (gpt *GPT) chat(prompt *ChatPrompt, useFunctions bool) (*ChatMessage, error) {
 	if gpt.isLimitExceeded() {
 		return nil, ErrTokenLimitExceeded
 	}
@@ -77,12 +77,12 @@ func (gpt *GPT) SetFunctions(funcs ...FunctionSpecs) {
 	gpt.functions = funcs
 }
 
-func (gpt *GPT) PredictWithFunctions(prompt *ChatPrompt) (*ChatMessage, error) {
-	return gpt.predict(prompt, true)
+func (gpt *GPT) ChatWithFunctions(prompt *ChatPrompt) (*ChatMessage, error) {
+	return gpt.chat(prompt, true)
 }
 
-func (gpt *GPT) Predict(prompt *ChatPrompt) (*ChatMessage, error) {
-	return gpt.predict(prompt, false)
+func (gpt *GPT) Chat(prompt *ChatPrompt) (*ChatMessage, error) {
+	return gpt.chat(prompt, false)
 }
 
 func (gpt *GPT) isLimitExceeded() bool {
