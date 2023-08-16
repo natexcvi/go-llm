@@ -3,3 +3,4 @@
 **/.venv
 output.json
 log.txt
+.idea
