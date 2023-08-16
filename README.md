@@ -171,3 +171,60 @@ Agents are the main component of the library. Agents can perform complex tasks t
 
 ### Prebuilt (WIP)
 A collection of ready-made agents that can be easily integrated with your application.
+
+### Evaluation (WIP)
+A collection of evaluation tools for agents and engines.
+## Example
+```go
+package main
+
+import (
+	"fmt"
+	"os"
+
+	"github.com/natexcvi/go-llm/engines"
+	"github.com/natexcvi/go-llm/evaluation"
+)
+
+func goodness(_ *engines.ChatPrompt, _ *engines.ChatMessage, err error) float64 {
+	if err != nil {
+		return 0
+	}
+
+	return 100
+}
+
+func main() {
+	engine := engines.NewGPTEngine(os.Getenv("OPENAI_TOKEN"), "gpt-3.5-turbo-0613")
+	engineRunner := evaluation.NewLLMRunner(engine)
+
+	evaluator := evaluation.NewEvaluator(engineRunner, &evaluation.Options[*engines.ChatPrompt, *engines.ChatMessage]{
+		GoodnessFunction: goodness,
+		Repetitions:      5,
+	})
+
+	testPack := []*engines.ChatPrompt{
+		{
+			History: []*engines.ChatMessage{
+				{
+					Text: "Hello, how are you?",
+				},
+				{
+					Text: "I'm trying to understand how this works.",
+				},
+			},
+		},
+		{
+			History: []*engines.ChatMessage{
+				{
+					Text: "Could you please explain it to me?",
+				},
+			},
+		},
+	}
+
+	results := evaluator.Evaluate(testPack)
+	fmt.Println("Goodness level of the first prompt:", results[0])
+	fmt.Println("Goodness level of the second prompt:", results[1])
+}
+```

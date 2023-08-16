@@ -41,7 +41,7 @@ func NewEvaluator[Input, Output any](runner Runner[Input, Output], options *Opti
 // Evaluate is a function that runs the tests and evaluates the outputs. It receives a test pack
 // which is a slice of inputs and returns a slice of float64 which represents the goodness level
 // of each output.
-func (e *Evaluator[Input, Output]) Evaluate(testPack []Input) ([]float64, error) {
+func (e *Evaluator[Input, Output]) Evaluate(testPack []Input) []float64 {
 	channels := make([]chan []float64, e.options.Repetitions)
 
 	for i := 0; i < e.options.Repetitions; i++ {
@@ -70,7 +70,7 @@ func (e *Evaluator[Input, Output]) Evaluate(testPack []Input) ([]float64, error)
 		report[i] = sum / float64(e.options.Repetitions)
 	}
 
-	return report, nil
+	return report
 }
 
 func (e *Evaluator[Input, Output]) evaluate(testPack []Input) ([]float64, error) {
