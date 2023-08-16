@@ -5,8 +5,8 @@ import (
 	"github.com/samber/mo"
 )
 
-// GoodnessFunction is a function that takes an input, an output and an error and returns a float64
-// which represents the goodness level of the output.
+// GoodnessFunction is a function that takes an input, an output and an error (if one occurred) and returns a float64
+// which represents the goodness score of the output.
 type GoodnessFunction[Input, Output any] func(input Input, output Output, err error) float64
 
 // Options is a struct that contains the options for the evaluator.
@@ -30,7 +30,7 @@ type Evaluator[Input, Output any] struct {
 	runner  Runner[Input, Output]
 }
 
-// NewEvaluator is a function that returns a new Evaluator.
+// Creates a new `Evaluator` with the provided configuration.
 func NewEvaluator[Input, Output any](runner Runner[Input, Output], options *Options[Input, Output]) *Evaluator[Input, Output] {
 	return &Evaluator[Input, Output]{
 		options: options,
@@ -38,9 +38,9 @@ func NewEvaluator[Input, Output any](runner Runner[Input, Output], options *Opti
 	}
 }
 
-// Evaluate is a function that runs the tests and evaluates the outputs. It receives a test pack
+// Runs the tests and evaluates the outputs. The function receives a test pack
 // which is a slice of inputs and returns a slice of float64 which represents the goodness level
-// of each output.
+// of each respective output.
 func (e *Evaluator[Input, Output]) Evaluate(testPack []Input) []float64 {
 	repetitionChannels := make([]chan []float64, e.options.Repetitions)
 
