@@ -272,7 +272,7 @@ func TestLLMEvaluator(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tester := NewLLMTester(tt.engine)
+			tester := NewLLMRunner(tt.engine)
 			evaluator := NewEvaluator(tester, tt.options)
 
 			got, err := evaluator.Evaluate(tt.testPack)

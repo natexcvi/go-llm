@@ -5,29 +5,42 @@ import (
 	"github.com/samber/mo"
 )
 
+// GoodnessFunction is a function that takes an input, an output and an error and returns a float64
+// which represents the goodness level of the output.
 type GoodnessFunction[Input, Output any] func(input Input, output Output, err error) float64
 
+// Options is a struct that contains the options for the evaluator.
 type Options[Input, Output any] struct {
+	// The goodness function that will be used to evaluate the output.
 	GoodnessFunction GoodnessFunction[Input, Output]
-	Repetitions      int
+	// The number of times the test will be repeated. The goodness level of each output will be
+	// averaged.
+	Repetitions int
 }
 
-type Tester[Input, Output any] interface {
-	Test(test Input) (Output, error)
+// Runner is an interface that represents a test runner that will be used to evaluate the output.
+// It takes an input and returns an output and an error.
+type Runner[Input, Output any] interface {
+	Run(test Input) (Output, error)
 }
 
+// Evaluator is a struct that runs the tests and evaluates the outputs.
 type Evaluator[Input, Output any] struct {
 	options *Options[Input, Output]
-	tester  Tester[Input, Output]
+	runner  Runner[Input, Output]
 }
 
-func NewEvaluator[Input, Output any](tester Tester[Input, Output], options *Options[Input, Output]) *Evaluator[Input, Output] {
+// NewEvaluator is a function that returns a new Evaluator.
+func NewEvaluator[Input, Output any](runner Runner[Input, Output], options *Options[Input, Output]) *Evaluator[Input, Output] {
 	return &Evaluator[Input, Output]{
 		options: options,
-		tester:  tester,
+		runner:  runner,
 	}
 }
 
+// Evaluate is a function that runs the tests and evaluates the outputs. It receives a test pack
+// which is a slice of inputs and returns a slice of float64 which represents the goodness level
+// of each output.
 func (e *Evaluator[Input, Output]) Evaluate(testPack []Input) ([]float64, error) {
 	channels := make([]chan []float64, e.options.Repetitions)
 
@@ -79,7 +92,7 @@ func (e *Evaluator[Input, Output]) test(testPack []Input) ([]mo.Result[Output], 
 	responses := make([]mo.Result[Output], len(testPack))
 
 	for i, test := range testPack {
-		response, err := e.tester.Test(test)
+		response, err := e.runner.Run(test)
 		if err != nil {
 			responses[i] = mo.Err[Output](err)
 		} else {
