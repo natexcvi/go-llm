@@ -1,9 +1,11 @@
 package evaluation
 
 import (
+	"errors"
 	"github.com/golang/mock/gomock"
 	"github.com/natexcvi/go-llm/engines"
 	"github.com/natexcvi/go-llm/engines/mocks"
+	"github.com/samber/lo"
 	"github.com/stretchr/testify/assert"
 	"math"
 	"strings"
@@ -50,6 +52,23 @@ func createMockExponentialLLM(t *testing.T) engines.LLM {
 	return mock
 }
 
+func createMockOddErrorLLM(t *testing.T) engines.LLM {
+	t.Helper()
+	ctrl := gomock.NewController(t)
+	mock := mocks.NewMockLLM(ctrl)
+	counters := make(map[string]int)
+	mock.EXPECT().Chat(gomock.Any()).DoAndReturn(func(prompt *engines.ChatPrompt) (*engines.ChatMessage, error) {
+		counters[prompt.History[0].Text]++
+		if counters[prompt.History[0].Text]%2 == 1 {
+			return nil, errors.New("error")
+		}
+		return &engines.ChatMessage{
+			Text: "OK!",
+		}, nil
+	}).AnyTimes()
+	return mock
+}
+
 func TestLLMEvaluator(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -61,7 +80,7 @@ func TestLLMEvaluator(t *testing.T) {
 		{
 			name: "Test echo engine with response length goodness and 1 repetition",
 			options: &Options[*engines.ChatPrompt, *engines.ChatMessage]{
-				GoodnessFunction: func(_ *engines.ChatPrompt, response *engines.ChatMessage) float64 {
+				GoodnessFunction: func(_ *engines.ChatPrompt, response *engines.ChatMessage, _ error) float64 {
 					return float64(len(response.Text))
 				},
 				Repetitions: 1,
@@ -102,7 +121,7 @@ func TestLLMEvaluator(t *testing.T) {
 		{
 			name: "Test echo engine with response length goodness and 5 repetitions",
 			options: &Options[*engines.ChatPrompt, *engines.ChatMessage]{
-				GoodnessFunction: func(_ *engines.ChatPrompt, response *engines.ChatMessage) float64 {
+				GoodnessFunction: func(_ *engines.ChatPrompt, response *engines.ChatMessage, _ error) float64 {
 					return float64(len(response.Text))
 				},
 				Repetitions: 5,
@@ -143,7 +162,7 @@ func TestLLMEvaluator(t *testing.T) {
 		{
 			name: "Test incremental engine with response length goodness and 5 repetitions",
 			options: &Options[*engines.ChatPrompt, *engines.ChatMessage]{
-				GoodnessFunction: func(_ *engines.ChatPrompt, response *engines.ChatMessage) float64 {
+				GoodnessFunction: func(_ *engines.ChatPrompt, response *engines.ChatMessage, _ error) float64 {
 					return float64(len(response.Text))
 				},
 				Repetitions: 5,
@@ -184,7 +203,7 @@ func TestLLMEvaluator(t *testing.T) {
 		{
 			name: "Test exponential engine with response length goodness and 4 repetitions",
 			options: &Options[*engines.ChatPrompt, *engines.ChatMessage]{
-				GoodnessFunction: func(_ *engines.ChatPrompt, response *engines.ChatMessage) float64 {
+				GoodnessFunction: func(_ *engines.ChatPrompt, response *engines.ChatMessage, _ error) float64 {
 					return float64(len(response.Text))
 				},
 				Repetitions: 4,
@@ -221,6 +240,33 @@ func TestLLMEvaluator(t *testing.T) {
 				},
 			},
 			want: []float64{1, 30, 270, 1360},
+		},
+		{
+			name: "Test error engine with dummy error goodness and 4 repetitions",
+			options: &Options[*engines.ChatPrompt, *engines.ChatMessage]{
+				GoodnessFunction: func(_ *engines.ChatPrompt, _ *engines.ChatMessage, err error) float64 {
+					return lo.If(err == nil, 100.0).Else(0.0)
+				},
+				Repetitions: 4,
+			},
+			engine: createMockOddErrorLLM(t),
+			testPack: []*engines.ChatPrompt{
+				{
+					History: []*engines.ChatMessage{
+						{
+							Text: "a",
+						},
+					},
+				},
+				{
+					History: []*engines.ChatMessage{
+						{
+							Text: "aa",
+						},
+					},
+				},
+			},
+			want: []float64{50, 50},
 		},
 	}
 

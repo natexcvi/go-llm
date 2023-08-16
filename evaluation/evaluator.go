@@ -1,8 +1,11 @@
 package evaluation
 
-import "fmt"
+import (
+	"fmt"
+	"github.com/samber/mo"
+)
 
-type GoodnessFunction[Input, Output any] func(input Input, output Output) float64
+type GoodnessFunction[Input, Output any] func(input Input, output Output, err error) float64
 
 type Options[Input, Output any] struct {
 	GoodnessFunction GoodnessFunction[Input, Output]
@@ -65,22 +68,23 @@ func (e *Evaluator[Input, Output]) evaluate(testPack []Input) ([]float64, error)
 
 	report := make([]float64, len(testPack))
 	for i, response := range responses {
-		report[i] = e.options.GoodnessFunction(testPack[i], response)
+		res, resErr := response.Get()
+		report[i] = e.options.GoodnessFunction(testPack[i], res, resErr)
 	}
 
 	return report, nil
 }
 
-func (e *Evaluator[Input, Output]) test(testPack []Input) ([]Output, error) {
-	responses := make([]Output, len(testPack))
+func (e *Evaluator[Input, Output]) test(testPack []Input) ([]mo.Result[Output], error) {
+	responses := make([]mo.Result[Output], len(testPack))
 
 	for i, test := range testPack {
 		response, err := e.tester.Test(test)
 		if err != nil {
-			return nil, fmt.Errorf("failed to test case: %w", err)
+			responses[i] = mo.Err[Output](err)
+		} else {
+			responses[i] = mo.Ok(response)
 		}
-
-		responses[i] = response
 	}
 
 	return responses, nil
