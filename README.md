@@ -191,7 +191,7 @@ func goodness(_ *engines.ChatPrompt, _ *engines.ChatMessage, err error) float64 
 		return 0
 	}
 
-	return 100
+	return 1
 }
 
 func main() {
