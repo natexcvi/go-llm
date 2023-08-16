@@ -13,6 +13,6 @@ func NewLLMRunner(llm engines.LLM) Runner[*engines.ChatPrompt, *engines.ChatMess
 	}
 }
 
-func (t *llmRunner) Run(test *engines.ChatPrompt) (*engines.ChatMessage, error) {
-	return t.llm.Chat(test)
+func (t *llmRunner) Run(input *engines.ChatPrompt) (*engines.ChatMessage, error) {
+	return t.llm.Chat(input)
 }

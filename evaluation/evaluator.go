@@ -21,7 +21,7 @@ type Options[Input, Output any] struct {
 // Runner is an interface that represents a test runner that will be used to evaluate the output.
 // It takes an input and returns an output and an error.
 type Runner[Input, Output any] interface {
-	Run(test Input) (Output, error)
+	Run(input Input) (Output, error)
 }
 
 // Evaluator is a struct that runs the tests and evaluates the outputs.
@@ -42,23 +42,23 @@ func NewEvaluator[Input, Output any](runner Runner[Input, Output], options *Opti
 // which is a slice of inputs and returns a slice of float64 which represents the goodness level
 // of each output.
 func (e *Evaluator[Input, Output]) Evaluate(testPack []Input) []float64 {
-	channels := make([]chan []float64, e.options.Repetitions)
+	repetitionChannels := make([]chan []float64, e.options.Repetitions)
 
 	for i := 0; i < e.options.Repetitions; i++ {
-		channels[i] = make(chan []float64)
+		repetitionChannels[i] = make(chan []float64)
 		go func(i int) {
 			report, err := e.evaluate(testPack)
 			if err != nil {
-				channels[i] <- nil
+				repetitionChannels[i] <- nil
 				return
 			}
-			channels[i] <- report
+			repetitionChannels[i] <- report
 		}(i)
 	}
 
 	responses := make([][]float64, e.options.Repetitions)
 	for i := 0; i < e.options.Repetitions; i++ {
-		responses[i] = <-channels[i]
+		responses[i] = <-repetitionChannels[i]
 	}
 
 	report := make([]float64, len(testPack))

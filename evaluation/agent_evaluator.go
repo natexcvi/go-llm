@@ -15,6 +15,6 @@ func NewAgentRunner[Input, Output any](agent agents.Agent[Input, Output]) Runner
 	}
 }
 
-func (t *agentRunner[Input, Output]) Run(test Input) (Output, error) {
-	return t.agent.Run(test)
+func (t *agentRunner[Input, Output]) Run(input Input) (Output, error) {
+	return t.agent.Run(input)
 }
