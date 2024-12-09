@@ -172,9 +172,9 @@ Agents are the main component of the library. Agents can perform complex tasks t
 ### Prebuilt (WIP)
 A collection of ready-made agents that can be easily integrated with your application.
 
-### Evaluation (WIP)
+## Evaluation (WIP)
 A collection of evaluation tools for agents and engines.
-## Example
+### Example
 ```go
 package main
 
