@@ -1,42 +1,26 @@
 package tools
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
 
-func mockWolframServer(t *testing.T, response string) {
+func mockWolframServer(t *testing.T, response string) string {
 	t.Helper()
-	// Set up a mock server to respond to requests with a mock Google search results page
 	mockServer := http.NewServeMux()
 	mockServer.HandleFunc("/v1/result", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
 		w.Write([]byte(response))
 	})
 
-	server := &http.Server{
-		Addr:    ":8080",
-		Handler: mockServer,
-	}
-
-	// Start the mock server on port 8080
-	go func() {
-		if err := server.ListenAndServe(); err != nil {
-			if err == http.ErrServerClosed {
-				return
-			}
-			log.Fatal(err)
-		}
-	}()
-	t.Cleanup(func() {
-		require.NoError(t, server.Shutdown(context.Background()))
-	})
+	server := httptest.NewServer(mockServer)
+	t.Cleanup(server.Close)
+	return server.URL + "/v1/result"
 }
 
 func TestWolframAlpha(t *testing.T) {
@@ -54,8 +38,8 @@ func TestWolframAlpha(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			mockWolframServer(t, tc.mockResponse)
-			wa := NewWolframAlphaWithServiceURL("http://localhost:8080/v1/result", "1234")
+			serviceURL := mockWolframServer(t, tc.mockResponse)
+			wa := NewWolframAlphaWithServiceURL(serviceURL, "1234")
 			_, err := wa.Execute(json.RawMessage(
 				fmt.Sprintf(`{"query": %q}`, tc.query),
 			))
