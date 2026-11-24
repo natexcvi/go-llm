@@ -14,7 +14,7 @@ jobs:
         env:
           POSTGRES_PASSWORD: test
         ports: ["5432:5432"]
-        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+        options: --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
     env:
       GO_LLM_TEST_POSTGRES: postgres://postgres:test@127.0.0.1:5432/postgres?sslmode=disable
     steps:
@@ -25,10 +25,19 @@ jobs:
       - name: Build without cgo
         run: CGO_ENABLED=0 go build ./...
       - run: go vet ./...
+      - name: Install Chromium for browser tests
+        env:
+          PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/playwright-browsers
+        run: |
+          go run github.com/mxschmitt/playwright-go/cmd/playwright install --with-deps --only-shell chromium
+          shell=("$PLAYWRIGHT_BROWSERS_PATH"/chromium_headless_shell-*/chrome-headless-shell-linux64/chrome-headless-shell)
+          test "${#shell[@]}" -eq 1 && test -x "${shell[0]}" || exit 1
+          echo "GO_LLM_TEST_CHROME=${shell[0]}" >> "$GITHUB_ENV"
+          echo "PLAYWRIGHT_BROWSERS_PATH=$PLAYWRIGHT_BROWSERS_PATH" >> "$GITHUB_ENV"
       - name: Test the harness with the race detector
         run: go test -race . ./capabilities ./models ./integrations ./storage ./workspace/... ./durable/... ./browser ./codemode/...
-      - name: Install browser for legacy tests
-        run: go run github.com/playwright-community/playwright-go/cmd/playwright install chromium
+      - name: Pull the workspace test image
+        run: docker pull alpine:3
       - name: Test all packages
         env:
           GO_LLM_DOCKER_TEST_IMAGE: alpine:3

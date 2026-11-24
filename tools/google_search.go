@@ -1,11 +1,10 @@
 package tools
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 
-	"github.com/playwright-community/playwright-go"
+	"github.com/mxschmitt/playwright-go"
 )
 
 type SearchResult struct {
@@ -56,23 +55,16 @@ func (ws *WebSearch) ArgsSchema() json.RawMessage {
 	return json.RawMessage(`{"query": "the search query"}`)
 }
 
-func (ws *WebSearch) isPlaywrightInstalled() bool {
-	_, err := playwright.Run()
-	return err == nil
-}
-
 func (ws *WebSearch) search(query string) (searchResults []SearchResult, err error) {
-	_, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	if !ws.isPlaywrightInstalled() {
-		err = playwright.Install()
-		if err != nil {
-			return nil, fmt.Errorf("could not install playwright: %v", err)
-		}
-	}
 	pw, err := playwright.Run()
 	if err != nil {
-		return nil, fmt.Errorf("could not start playwright: %v", err)
+		if err := playwright.Install(&playwright.RunOptions{Browsers: []string{"chromium"}}); err != nil {
+			return nil, fmt.Errorf("could not install playwright: %w", err)
+		}
+		pw, err = playwright.Run()
+		if err != nil {
+			return nil, fmt.Errorf("could not start playwright: %w", err)
+		}
 	}
 	defer pw.Stop()
 
@@ -117,7 +109,9 @@ func (ws *WebSearch) search(query string) (searchResults []SearchResult, err err
 	}
 
 	// wait for page to load completely
-	page.WaitForLoadState(string(*playwright.LoadStateDomcontentloaded))
+	if err := page.WaitForLoadState(playwright.PageWaitForLoadStateOptions{State: playwright.LoadStateDomcontentloaded}); err != nil {
+		return nil, fmt.Errorf("could not wait for results page: %w", err)
+	}
 
 	// Parse the search results
 	results, err := page.QuerySelectorAll("#search .g")

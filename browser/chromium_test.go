@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"os/exec"
 	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/chromedp/chromedp"
 	h "github.com/natexcvi/go-llm"
@@ -19,15 +21,17 @@ import (
 func TestChromiumInteractionAndSubresourcePolicy(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-	var bin string
-	for _, name := range []string{"chromium", "google-chrome", "chromium-browser"} {
-		if p, err := exec.LookPath(name); err == nil {
-			bin = p
-			break
-		}
-	}
+	bin := os.Getenv("GO_LLM_TEST_CHROME")
 	if bin == "" {
-		t.Skip("Chromium is required for this integration test")
+		for _, name := range []string{"google-chrome", "chromium", "chromium-browser"} {
+			if p, err := exec.LookPath(name); err == nil {
+				bin = p
+				break
+			}
+		}
+		if bin == "" {
+			t.Skip("Chromium is required for this integration test")
+		}
 	}
 	var blockedHits atomic.Int64
 	other := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { blockedHits.Add(1) }))
@@ -46,7 +50,7 @@ func TestChromiumInteractionAndSubresourcePolicy(t *testing.T) {
 		}
 		return h.Response{Text: q.Messages[len(q.Messages)-1].Text}, nil
 	})
-	agent := h.Agent[string]{Output: h.Text(), Model: model, Capabilities: []h.Capability{browser.Chromium{Origins: []string{server.URL}, Executable: bin, AllocatorOptions: []chromedp.ExecAllocatorOption{chromedp.NoSandbox}}.Capability()}}
+	agent := h.Agent[string]{Output: h.Text(), Model: model, Capabilities: []h.Capability{browser.Chromium{Origins: []string{server.URL}, Executable: bin, AllocatorOptions: []chromedp.ExecAllocatorOption{chromedp.NoSandbox, chromedp.WSURLReadTimeout(time.Minute)}}.Capability()}}
 	result, err := agent.Run(t.Context(), "fill the form", h.Options{})
 	if err != nil || result.Output != "saved" || blockedHits.Load() != 0 {
 		t.Fatal(result.Output, err, blockedHits.Load())
