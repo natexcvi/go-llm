@@ -229,6 +229,7 @@ func init() {
 
 func main() {
 	log.SetLevel(log.DebugLevel)
+	rootCmd.AddCommand(newRunCommand())
 	rootCmd.AddCommand(codeRefactorAgent)
 	rootCmd.AddCommand(tradeAssistantAgent)
 	rootCmd.AddCommand(unitTestWriter)
