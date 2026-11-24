@@ -1,172 +1,153 @@
 # go-llm
 
-Build tool-using agents in Go. The root package runs the conversation, validates model output against Go types, and gives your application control over every tool call. It requires Go 1.25.8 or later.
+**A Go harness for deep agents.** Give an agent a workspace, a task, and a budget. It can break the task into steps, send a subagent to investigate, act on the findings, and pick up where it left off after an approval or a process restart. Your Go application owns the tools, the permission decision for each call, and the storage for each run.
+
+For example, a coding agent investigating a regression can send a read-only explorer through the repository, keep the relevant file paths as older tool output is compacted, run a focused test, and return a report that your application decodes into a Go struct.
+
+## Try the coding agent
+
+With Go 1.25.8 or later, set `OPENAI_API_KEY` and `OPENAI_MODEL` to use a Chat Completions model with tool calling. Run this command from a local Go repository.
 
 ```sh
-go get github.com/natexcvi/go-llm
+go run github.com/natexcvi/go-llm/go-llm-cli@v1.0.0 run \
+  --preset coder --workspace . --program go \
+  "Trace one public API from its entry point to its tests. Run the most relevant test and report what it proves."
 ```
 
-## A typed agent
+The Coder preset brings repository instructions, file search and editing, planning, shell execution, context compaction, and a read-only explorer. This command gives the agent write access to the current workspace and permits the `go` executable, including programs it starts. For a read-only investigation, the library example below exposes only reading tools. For isolated execution, supply a container or SSH workspace.
 
-This agent looks up inventory in application code and returns a validated Go struct. The model name and credentials come from the calling application.
+## Build a repository investigator
+
+```sh
+go get github.com/natexcvi/go-llm@v1.0.0
+```
+
+This program gives the investigator a plan and a named delegate. The investigator can decide which questions to delegate. The explorer gets a fresh conversation, can read files, and returns its findings to the parent. Both draw on the same request and tool-call budget.
 
 ```go
 package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"os"
 
-	harness "github.com/natexcvi/go-llm"
+	h "github.com/natexcvi/go-llm"
+	"github.com/natexcvi/go-llm/capabilities"
 	"github.com/natexcvi/go-llm/models"
+	"github.com/natexcvi/go-llm/workspace"
 )
 
-type Lookup struct {
-	SKU string `json:"sku"`
-}
-
-type Stock struct {
-	SKU   string `json:"sku"`
-	Units int    `json:"units"`
+type Report struct {
+	Answer string   `json:"answer"`
+	Files  []string `json:"files"`
 }
 
 func main() {
-	lookup := harness.NewTool("lookup_stock", "Look up the available units for a SKU.",
-		func(ctx context.Context, in Lookup) (Stock, error) {
-			if in.SKU != "A42" {
-				return Stock{}, harness.Retry(errors.New("unknown SKU"))
-			}
-			return Stock{SKU: in.SKU, Units: 7}, nil
-		})
-
-	agent := harness.Agent[Stock]{
-		Model: models.OpenAI{
-			Model:  os.Getenv("OPENAI_MODEL"),
-			APIKey: os.Getenv("OPENAI_API_KEY"),
-		},
-		Output:       harness.JSON[Stock](),
-		Instructions: "Check inventory before answering.",
-		Capabilities: []harness.Capability{harness.Tools(lookup)},
-		Limits:       harness.Limits{Requests: 5, ToolCalls: 2},
+	if len(os.Args) != 2 {
+		log.Fatal("usage: investigator <repository>")
 	}
-	result, err := agent.Run(context.Background(), "How many A42 units are available?", harness.Options{})
+	repo, err := workspace.Open(os.Args[1], nil)
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("%s has %d units\n", result.Output.SKU, result.Output.Units)
+	defer repo.Close()
+
+	read := capabilities.FileSystem(repo, false)
+	explorer := capabilities.Delegate{
+		Name: "explorer", Description: "Trace one code path and cite the files you read.",
+		Agent: h.Agent[string]{Capabilities: []h.Capability{read}},
+	}
+	agent := h.Agent[Report]{
+		Model: models.OpenAIResponses{
+			Model: os.Getenv("OPENAI_MODEL"), APIKey: os.Getenv("OPENAI_API_KEY"),
+		},
+		Instructions: "Plan the investigation. Delegate one path to the explorer, then verify its citations.",
+		Output:       h.JSON[Report](),
+		Limits:       h.Limits{Requests: 16, ToolCalls: 40},
+		Capabilities: []h.Capability{
+			read, capabilities.Planning(),
+			capabilities.SubAgents{Agents: []capabilities.Delegate{explorer}}.Capability(),
+		},
+	}
+	result, err := agent.Run(context.Background(), "How does this project handle a failed operation?", h.Options{})
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(result.Output.Answer)
+	for _, file := range result.Output.Files {
+		fmt.Println(file)
+	}
 }
 ```
 
-Use `harness.Text()` for free text. For deterministic tests, supply a `harness.ModelFunc` that returns model responses directly. The runnable example in [agent_test.go](agent_test.go) needs no network or API key.
+Save it as `main.go` in a Go module and run `go run . /path/to/repository` with a Responses API model that supports tools and structured output. The harness derives the schema from `Report` and validates the model's answer before returning it. To test the same loop offline, provide a scripted `h.ModelFunc`. [Runnable offline example](agent_test.go)
 
-## Workspaces and capabilities
+## What survives a long run?
 
-`capabilities.Coder` combines file reads and edits, command execution, repository instructions, planning, and a read-only explorer. Choose the files and executor when constructing it.
+| Mechanism | What it keeps | When to use it |
+| --- | --- | --- |
+| **Planning** | Task IDs, status, parent tasks, and prerequisites | Track what remains when the work spans many tool calls. |
+| **Compaction** | A smaller active conversation, including retained tool calls and their results | Reclaim context from long logs and repeated file reads before paying for a summary. |
+| **Memory** | A scoped notebook across runs. A bounded excerpt of changed notes from `MEMORY.md` accompanies the next user prompt. | Carry project conventions and decisions into a new conversation. |
+| **Checkpointing** | A serializable snapshot of history, pending calls, usage, and bound capability state | Resume the same run after an approval or a worker restart. |
+
+A compaction policy can clear old tool results first, then summarize only if the request still exceeds its target. This example uses a 128,000-token window. Set the window for the model you deploy.
 
 ```go
-w, err := workspace.Open("./repo", []string{"PATH=/usr/local/go/bin:/usr/bin:/bin"})
-if err != nil {
-	return err
-}
-defer w.Close()
-
-agent := harness.Agent[string]{
-	Model: model, Output: harness.Text(),
-	Capabilities: []harness.Capability{
-		capabilities.Coder(w, w, "go", "gofmt"),
-		capabilities.ReportRemainingBudget(),
+policy := capabilities.CompactionPolicy{
+	Budget:         capabilities.ContextBudget{Window: 128_000},
+	TargetFraction: 0.7,
+	OnRequest:      true,
+	Strategies: []capabilities.CompactionStrategy{
+		capabilities.ClearOldResults(4, 3),
+		capabilities.RetainRecent(6, capabilities.ModelSummary(model)),
 	},
 }
 ```
 
-Local file operations use `os.Root`. Commands run with the host user's privileges and the environment supplied to `workspace.Open`. A program allowlist checks the executable the agent requests. Programs such as `go` can launch their own subprocesses. For container execution, pass a workspace from `workspace.OpenContainer`. For a remote POSIX host, use `workspace.OpenSSH` with an authenticated, host-key-verified SSH connection.
+Add `policy.Capability()` to the agent. `OnRequest` also gives the model a `compact_context` tool. Compaction changes the history that later requests and checkpoints carry. OpenAI Responses and Anthropic Messages also support provider-native compaction. [Compaction policies](capabilities/compaction.go) · [Notebook options](capabilities/memory.go)
 
-`capabilities.Researcher` combines a search and page-fetch provider, bounded tool output and a separate research agent. The integrations package includes Keenable, Exa and You.com implementations. `integrations.MCP` discovers remote tools through the Go MCP SDK. `integrations.Hosted` selects a service endpoint and accepts an application-authenticated HTTP client.
+## Pause for approval and resume
 
-The `browser` package drives a stateful Chromium tab through the DevTools Protocol. Configure `browser.Chromium{Origins: []string{"https://example.org"}}.Capability()` to expose navigation, form interaction and reading tools. Its integration test runs against a local form. Use `browser.BrowserUse` to delegate a browsing goal to a child agent with its own tab and step budget.
+An `Options.Authorize` callback sees the tool name and arguments before execution. Return `h.Defer` for a change that needs review. The run returns `h.ErrDeferred`, and its snapshot identifies the pending call. Authorization also applies to delegated and programmatic tool calls.
 
-Pass `Options.Images` to attach image URLs or bytes to the current prompt. The OpenAI Chat Completions, OpenAI Responses and Anthropic Messages transports support image input. For checkpoints with large binary images, `storage.MediaArchive` stores the bytes by SHA-256 and validates the digest on restore.
-
-## Long-running conversations
-
-Install a compaction policy to keep the active conversation within a budget. This example tries clearing old tool output first. It calls the summarizer only if the conversation still exceeds 70% of the configured window. The most recent groups of messages retain their tool call/result pairs.
+Use `storage.Checkpoint(store, runID)` as `Options.Checkpoint` to save progress. After review, load the snapshot and pass an authorizer that checks the recorded decision for that call.
 
 ```go
-budget := capabilities.ContextBudget{Window: 128_000}
-policy := capabilities.CompactionPolicy{
-    Budget: budget, TargetFraction: 0.7, OnRequest: true,
-    Strategies: []capabilities.CompactionStrategy{
-        capabilities.ClearOldResults(4, 3),
-        capabilities.RetainRecent(6, capabilities.ModelSummary(model)),
-    },
+snapshot, err := storage.Load(ctx, store, runID)
+if err != nil {
+	return err
 }
-agent := harness.Agent[string]{
-    Model: model, Output: harness.Text(),
-    Capabilities: []harness.Capability{policy.Capability(), capabilities.PruneToolResults()},
-}
+result, err := agent.Resume(ctx, snapshot, h.Options{
+	Authorize:  authorizeReviewedCall,
+	Checkpoint: storage.Checkpoint(store, runID),
+})
 ```
 
-The policy updates the conversation saved by `Run`, `Advance` and `Resume`. Use `Options.Checkpoint` to archive earlier versions when needed. `compact_context` asks for a pass before the next model request. `prune_tool_result` lets the model replace a specific result it just received with a shorter note. `ReportContextUsage` exposes the estimate and window size. Supply the model's window explicitly when using fractional targets. The fallback is 200,000 tokens.
+Use one writer per run ID and an idempotency key for external writes. A crash between a tool's side effect and its checkpoint can replay that call. For queue-driven work, `Agent.Advance` executes one top-level model request or one pending tool call per step. [Storage backends](storage) · [Durable adapters for Lambda, Azure Durable Task, Absurd, and PGTask](durable)
 
-For provider-native compaction, use `capabilities.NativeSummary(model, keepGroups)` with `models.OpenAIResponses` or `models.Anthropic`. Both transports also accept `CompactAtTokens` for server-managed compaction. Native blocks carry provider data that must be replayed on the originating transport and endpoint. Model-backed summarizers, judges and on-demand provider compaction count toward the run's request and token limits.
+## Let the model call tools from code
 
-Use `capabilities.SubAgents{Agents: delegates}.Capability()` for a named roster with a shared usage budget. Each child gets fresh history and inherits authorization. `IncludeSelf` adds a fresh run of the original agent. `ForwardEvents` attaches the delegate path to child events. The single-tool `SubAgent` helper retains its independent accounting.
+For tasks that need loops, comparisons, or aggregation, code mode exposes selected Go tools as functions in a Starlark REPL running inside WebAssembly. One snippet can call several tools and return a small result to the outer conversation. Each nested call goes through the parent's authorization, middleware, events, and tool-call limit.
 
-`capabilities.Memory(store)` records a bounded excerpt of `MEMORY.md` and filenames with the next user prompt when the notebook changes. `NotebookOptions` configures read and search limits. `SkillCatalog` layers skill libraries in precedence order and supports explicit inclusion, exclusion and duplicate handling. Enable `ReadFiles` to let loaded skills read bundled text through a rooted workspace or embedded filesystem.
-
-## Calling tools from code
-
-The optional `codemode` package lets a model call several Go tools in a single Starlark program. Build the interpreter from this repository with the Go toolchain.
+Build the interpreter from a checkout of this repository.
 
 ```sh
 GOOS=wasip1 GOARCH=wasm go build -o harness-code.wasm ./codemode/cmd/harness-code
 ```
 
-Read the module with `os.ReadFile`, pass the bytes to `codemode.Open(ctx, module)`, and install `engine.Capability(lookup)`. Close the engine after the application finishes serving runs. The guest receives its source and prior tool results through standard input. Each evaluation gets a fresh instance, 64 MiB of linear memory and a five-second deadline. Programs can use loops, comprehensions and named tool arguments. Only the final expression and printed output enter the outer conversation. Approval pauses preserve completed nested calls. Use `engine.DynamicWorkflow` to expose named child agents as functions in a program with a shared call budget.
+Load the bytes with `codemode.Open(ctx, guest)`, install `engine.Capability(tools...)`, and close the engine when the application shuts down. Variables and functions survive successive snippets within a run. When a nested call pauses for approval, resuming reconstructs the program from recorded results so completed calls keep their values. [Code mode](codemode) · [Approval and replay tests](codemode/code_test.go)
 
-Code mode keeps a REPL by default. Variables and functions survive successive snippets and checkpoint restores. A call with `restart: true` clears the session. The guest reconstructs bindings by replaying completed snippets against their recorded tool results. The session holds up to 64 snippets and shares the guest input and execution limits. Each new agent run starts a fresh session. Use `engine.Stateless(lookup)` for independent snippets or to run a guest module built before REPL support.
+## Choose the pieces your agent needs
 
-Install `engine.CapabilityCreation(store)` to let an agent author, validate, list and disable named Starlark transformations. Install `engine.LoadActive(store)` to load enabled tools at run start. Each tool receives a `params` dictionary. Use a dedicated store per authoring scope.
+| Package | Use it for |
+| --- | --- |
+| [harness](agent.go) | Typed tools and outputs, model and tool events, retries, budgets, and resumable runs. |
+| [capabilities](capabilities) | Coder and Researcher presets, named subagents, context policies, guardrails, human input, and skill libraries. |
+| [models](models) | Streaming OpenAI Chat Completions, OpenAI Responses, Anthropic Messages, and model fallback. |
+| [workspace](workspace) and [browser](browser) | Rooted files, local or isolated command execution, and browser interaction through Chromium. |
+| [integrations](integrations) | MCP tool discovery and execution, hosted service adapters, and search providers for research agents. |
 
-## Runs, approvals and recovery
-
-Configure an agent once before running it concurrently. Each run creates its own tools and capability state. A caller that supplies a store, job manager or peer network chooses which runs share that resource.
-
-- Pass `Options.History` to continue a conversation. `Result.History` includes the supplied messages, the user prompt, model responses and correlated tool results.
-- Pass `Options.Observe` for request, response, tool and final events. OpenAI and Anthropic also emit incremental text. Returning an error from the observer stops the run.
-- Use `Options.Authorize` to approve, deny or defer a call before execution. On `errors.Is(err, harness.ErrDeferred)`, persist the snapshot and resume it with a decision. A deferred call stays paused if the resumed run has no authorizer.
-- Connect `Options.Checkpoint` to a memory, directory or SQL store with `storage.Checkpoint`. Reload with `storage.Load` and call `Agent.Resume`. Saved pending calls, usage and bound state survive a restart. Resuming a completed checkpoint returns its recorded output.
-- Checkpoints cover completed tool batches, approval pauses, output corrections and final responses. A process failure between an external side effect and its checkpoint can replay that effect. Use idempotency keys for such tools. Use one writer per run key.
-- `harness.Retry(err)` sends a correctable handler error to the model. Other handler errors return to the application. Inspect `ErrRetries` and `ErrLimit` with `errors.Is`.
-
-## Durable execution
-
-Use `harness.Start` and `Agent.Advance` to drive one top-level model request or one pending tool call at a time. Compaction helper requests execute within the enclosing model step. The returned snapshot contains the next pending action. Persist it before advancing again.
-
-The `durable/lambda` adapter uses the AWS durable execution SDK. Inside a Lambda durable handler, call `lambda.Run(ctx, agent, harness.Start(prompt, nil), options)`. The `durable/azure` adapter registers an orchestrator and activity with a Microsoft Durable Task worker. Both adapters can suspend for approval. For PostgreSQL task queues, use `durable/absurd` inside an Absurd task or `durable/pgtask` with a claimed pgtask lease. Each step reconstructs its capabilities from the snapshot, so use a shared store for data that needs to cross steps. Use idempotency keys for side effects that a worker can retry before recording completion.
-
-## CLI
-
-```sh
-go run ./go-llm-cli run --model "$OPENAI_MODEL" "Explain Go interfaces"
-go run ./go-llm-cli run --model "$OPENAI_MODEL" --preset coder --workspace . --program go "Run the tests and summarize failures"
-```
-
-The CLI accepts `OPENAI_API_KEY` and an optional `OPENAI_BASE_URL`. The researcher preset uses Keenable and accepts `KEENABLE_API_KEY`.
-
-## Compatibility and verification
-
-The comparison target is Pydantic AI Harness 0.73.0. The coverage table records native implementations, behavior checked against the pinned release, and outstanding ports. [Coverage and differences](docs/PARITY.md)
-
-Existing imports of `agents`, `engines`, `tools`, `memory`, `evaluation` and `prebuilt` still work. Existing CLI commands use those packages. New applications can start at the module root without importing the legacy stack.
-
-```sh
-CGO_ENABLED=0 go build ./...
-go test -race . ./capabilities ./models ./integrations ./storage ./workspace/... ./durable/... ./browser ./codemode/...
-go test ./...
-```
-
-The native harness tests use local model fixtures, HTTP and SSH servers, SQLite, and the AWS durable SDK local runner. The Chromium test runs when a browser is installed. Set `GO_LLM_TEST_POSTGRES` to a dedicated database to exercise PostgreSQL storage and the Microsoft Durable Task worker. Set `GO_LLM_TEST_ABSURD` or `GO_LLM_TEST_PGTASK` to exercise a database with the respective queue schema installed. The Docker workspace test runs when `GO_LLM_DOCKER_TEST_IMAGE` names an available image containing `cat`. The legacy tool suite also exercises Chromium, Docker and Python.
+The native harness lives at the module root. Earlier imports such as `agents`, `engines`, and `tools` remain available. For a mechanism-by-mechanism comparison with Pydantic AI Harness 0.73.0, including differences and outstanding ports, see the [coverage matrix](docs/PARITY.md).

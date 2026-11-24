@@ -1,12 +1,11 @@
 package tools
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
@@ -14,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func mockSearchService(t *testing.T) {
+func mockSearchService(t *testing.T) string {
 	t.Helper()
 	// Set up a mock server to respond to requests with a mock Google search results page
 	mockServer := http.NewServeMux()
@@ -36,23 +35,9 @@ func mockSearchService(t *testing.T) {
 		w.Write([]byte(fileString))
 	})
 
-	server := &http.Server{
-		Addr:    ":8080",
-		Handler: mockServer,
-	}
-
-	// Start the mock server on port 8080
-	go func() {
-		if err := server.ListenAndServe(); err != nil {
-			if err == http.ErrServerClosed {
-				return
-			}
-			log.Fatal(err)
-		}
-	}()
-	t.Cleanup(func() {
-		require.NoError(t, server.Shutdown(context.Background()))
-	})
+	server := httptest.NewServer(mockServer)
+	t.Cleanup(server.Close)
+	return server.URL
 }
 
 func TestWebSearch(t *testing.T) {
@@ -67,10 +52,10 @@ func TestWebSearch(t *testing.T) {
 			expOutputPath: "testdata/expected_parsed_results.json",
 		},
 	}
-	mockSearchService(t)
+	serviceURL := mockSearchService(t)
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ws := NewWebSearch("http://localhost:8080")
+			ws := NewWebSearch(serviceURL)
 			output, err := ws.Execute(json.RawMessage(
 				fmt.Sprintf(`{"query": %q}`, tc.query),
 			))

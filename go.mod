@@ -53,8 +53,8 @@ require (
 	github.com/cenkalti/backoff/v4 v4.1.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/chromedp/sysutil v1.1.0 // indirect
-	github.com/danwakefield/fnmatch v0.0.0-20160403171240-cbb64ac3d964 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/deckarep/golang-set/v2 v2.8.0 // indirect
 	github.com/fatih/color v1.7.0 // indirect
 	github.com/go-json-experiment/json v0.0.0-20250725192818-e39067aee2d2 // indirect
 	github.com/go-logr/logr v1.2.4 // indirect
@@ -105,7 +105,6 @@ require (
 	google.golang.org/genproto v0.0.0-20230410155749-daa745c078e1 // indirect
 	google.golang.org/grpc v1.56.3 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
-	gopkg.in/square/go-jose.v2 v2.6.0 // indirect
 )
 
 require (
@@ -113,7 +112,7 @@ require (
 	github.com/PuerkitoBio/goquery v1.8.1
 	github.com/briandowns/spinner v1.23.0
 	github.com/hashicorp/errwrap v1.0.0 // indirect
-	github.com/playwright-community/playwright-go v0.2000.1
+	github.com/mxschmitt/playwright-go v0.6401.0
 	github.com/samber/lo v1.38.1
 	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/cobra v1.7.0
