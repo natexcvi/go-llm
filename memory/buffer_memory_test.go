@@ -45,6 +45,22 @@ func TestBufferMemory(t *testing.T) {
 			},
 		},
 		{
+			name: "max 2 with multiple new messages",
+			max:  2,
+			existingMessages: []*engines.ChatMessage{
+				{Text: "hello"},
+			},
+			newMessages: []*engines.ChatMessage{
+				{Text: "world"},
+				{Text: "again"},
+				{Text: "!"},
+			},
+			expected: []*engines.ChatMessage{
+				{Text: "again"},
+				{Text: "!"},
+			},
+		},
+		{
 			name: "max 2",
 			max:  2,
 			existingMessages: []*engines.ChatMessage{

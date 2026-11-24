@@ -9,7 +9,7 @@ type BufferMemory struct {
 
 func (memory *BufferMemory) reduceBuffer() {
 	if memory.MaxHistory > 0 && len(memory.Buffer) > memory.MaxHistory {
-		memory.Buffer = memory.Buffer[1:]
+		memory.Buffer = memory.Buffer[len(memory.Buffer)-memory.MaxHistory:]
 	}
 }
 
