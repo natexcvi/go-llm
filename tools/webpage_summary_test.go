@@ -5,7 +5,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/golang/mock/gomock"
 	"github.com/natexcvi/go-llm/engines"
@@ -66,12 +68,11 @@ func TestWebpageSumamry(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			mockEngine := enginemocks.NewMockLLM(ctrl)
 			srv := mockWebServer(t, readTestFile(t, tc.pageContentPath))
-			strippedPageContent := (&WebpageSummary{}).stripHTMLTags(
-				string(readTestFile(t, tc.pageContentPath)),
-			)
 			var prompts []string
+			var requestSizes []int
 			mockEngine.EXPECT().Chat(gomock.Any()).DoAndReturn(func(prompt *engines.ChatPrompt) (*engines.ChatMessage, error) {
 				prompts = append(prompts, prompt.History[len(prompt.History)-1].Text)
+				requestSizes = append(requestSizes, promptBytes(prompt))
 				return &engines.ChatMessage{
 					Role: engines.ConvRoleAssistant,
 					Text: tc.expected,
@@ -85,11 +86,9 @@ func TestWebpageSumamry(t *testing.T) {
 			}
 			require.NoError(t, err)
 			assert.JSONEq(t, fmt.Sprintf("%q", tc.expected), string(summary))
-			chunks := splitIntoChunks(strippedPageContent, defaultChunkSize)
-			require.Greater(t, len(chunks), 1, "a long article should be split into chunks")
-			require.Len(t, prompts, len(chunks))
-			for index, chunk := range chunks {
-				assert.Contains(t, prompts[index], chunk)
+			require.Greater(t, len(prompts), 1, "a long article should be split into chunks")
+			for _, size := range requestSizes {
+				assert.LessOrEqual(t, size, defaultContextBudgetBytes-defaultResponseReserveBytes)
 			}
 		})
 	}
@@ -100,31 +99,79 @@ func TestWebpageSumamry(t *testing.T) {
 func TestWebpageSummaryChunksWithCumulativeSummary(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	mockEngine := enginemocks.NewMockLLM(ctrl)
-	srv := mockWebServer(t, []byte("<html><body><p>chunk one alpha beta</p><p>chunk two gamma delta</p></body></html>"))
+	page := "<html><body><p>chunk one alpha beta " + strings.Repeat("filler ", 24) + "</p><p>chunk two gamma delta</p></body></html>"
+	srv := mockWebServer(t, []byte(page))
 
 	var prompts []string
 	mockEngine.EXPECT().Chat(gomock.Any()).DoAndReturn(func(prompt *engines.ChatPrompt) (*engines.ChatMessage, error) {
 		text := prompt.History[len(prompt.History)-1].Text
 		prompts = append(prompts, text)
 		return &engines.ChatMessage{Role: engines.ConvRoleAssistant, Text: fmt.Sprintf("summary %d", len(prompts))}, nil
-	}).Times(2)
+	}).AnyTimes()
 
-	ws := NewWebpageSummaryWithChunkSize(mockEngine, 40)
+	ws := NewWebpageSummaryWithBudget(mockEngine, 300, 50)
 	result, err := ws.Execute([]byte(fmt.Sprintf(`{"url": %q}`, srv.URL)))
 	require.NoError(t, err)
-	assert.JSONEq(t, `"summary 2"`, string(result))
-	require.Len(t, prompts, 2, "the long page should be summarised in two chunks")
+	assert.JSONEq(t, fmt.Sprintf("%q", fmt.Sprintf("summary %d", len(prompts))), string(result))
+	require.GreaterOrEqual(t, len(prompts), 2, "the long page should be summarised in chunks")
 	assert.Contains(t, prompts[0], "chunk one alpha")
 	assert.NotContains(t, prompts[0], "chunk two gamma delta")
 	assert.Contains(t, prompts[1], "summary 1", "the second chunk must see the cumulative summary")
-	assert.Contains(t, prompts[1], "delta", "the second chunk must see its own content")
+	assert.Contains(t, prompts[len(prompts)-1], "delta", "the last chunk must see its own content")
+}
+
+func TestWebpageSummaryBoundsEveryRequestWithMultibyteSpanAndLongSummary(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mockEngine := enginemocks.NewMockLLM(ctrl)
+	span := strings.Repeat("😀", 80)
+	srv := mockWebServer(t, []byte("<html><body><p>"+span+"</p></body></html>"))
+	longSummary := strings.Repeat("summary-😀", 24)
+
+	var prompts []string
+	var requestSizes []int
+	mockEngine.EXPECT().Chat(gomock.Any()).DoAndReturn(func(prompt *engines.ChatPrompt) (*engines.ChatMessage, error) {
+		prompts = append(prompts, prompt.History[len(prompt.History)-1].Text)
+		requestSizes = append(requestSizes, promptBytes(prompt))
+		return &engines.ChatMessage{Role: engines.ConvRoleAssistant, Text: longSummary}, nil
+	}).AnyTimes()
+
+	const contextBudget = 300
+	const responseReserve = 50
+	ws := NewWebpageSummaryWithBudget(mockEngine, contextBudget, responseReserve)
+	_, err := ws.Execute([]byte(fmt.Sprintf(`{"url": %q}`, srv.URL)))
+	require.NoError(t, err)
+	require.GreaterOrEqual(t, len(requestSizes), 2, "the unbroken span should be split into multiple requests")
+	for index, size := range requestSizes {
+		assert.LessOrEqual(t, size, contextBudget-responseReserve, "request %d exceeds the input budget", index+1)
+		assert.True(t, utf8.ValidString(prompts[index]), "request %d splits a UTF-8 sequence", index+1)
+	}
+	require.GreaterOrEqual(t, len(prompts), 2)
+	assert.NotContains(t, prompts[1], longSummary, "a long previous summary must be capped before reuse")
+}
+
+func TestWebpageSummaryErrorsWhenFixedInstructionsCannotFit(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mockEngine := enginemocks.NewMockLLM(ctrl)
+	srv := mockWebServer(t, []byte("<html><body><p>content</p></body></html>"))
+
+	ws := NewWebpageSummaryWithBudget(mockEngine, 80, 20)
+	_, err := ws.Execute([]byte(fmt.Sprintf(`{"url": %q}`, srv.URL)))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "webpage summary fixed instructions cannot fit")
 }
 
 func TestSplitIntoChunks(t *testing.T) {
 	chunks := splitIntoChunks("one two three four five six seven", 12)
 	assert.Equal(t, []string{"one two", "three four", "five six", "seven"}, chunks)
 	assert.Empty(t, splitIntoChunks("", 12))
-	assert.Equal(t, []string{"a", "longword"}, splitIntoChunks("a longword", 4), "words longer than the chunk size are kept whole")
+	assert.Equal(t, []string{"a", "long", "word"}, splitIntoChunks("a longword", 4), "long words are split on byte boundaries")
+
+	multibyteChunks := splitIntoChunks(strings.Repeat("😀", 5), 8)
+	assert.Equal(t, []string{"😀😀", "😀😀", "😀"}, multibyteChunks)
+	for _, chunk := range multibyteChunks {
+		assert.LessOrEqual(t, len(chunk), 8)
+		assert.True(t, utf8.ValidString(chunk))
+	}
 }
 
 func TestStripHTMLTags(t *testing.T) {
