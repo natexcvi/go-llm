@@ -6,7 +6,7 @@ For example, a coding agent investigating a regression can send a read-only expl
 
 ## Try the coding agent
 
-With Go 1.25.8 or later, set `OPENAI_API_KEY` and `OPENAI_MODEL` to use a Chat Completions model with tool calling. Run this command from a local Go repository.
+Building the current branch requires Go 1.26.11 or later. The versioned example below works with Go 1.25.8 or later. Set `OPENAI_API_KEY` and `OPENAI_MODEL` to use a Chat Completions model with tool calling. Run this command from a local Go repository.
 
 ```sh
 go run github.com/natexcvi/go-llm/go-llm-cli@v1.0.0 run \
