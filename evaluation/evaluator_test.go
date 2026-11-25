@@ -2,14 +2,16 @@ package evaluation
 
 import (
 	"errors"
+	"math"
+	"strings"
+	"sync"
+	"testing"
+
 	"github.com/golang/mock/gomock"
 	"github.com/natexcvi/go-llm/engines"
 	"github.com/natexcvi/go-llm/engines/mocks"
 	"github.com/samber/lo"
 	"github.com/stretchr/testify/assert"
-	"math"
-	"strings"
-	"testing"
 )
 
 func createMockEchoLLM(t *testing.T) engines.LLM {
@@ -24,15 +26,26 @@ func createMockEchoLLM(t *testing.T) engines.LLM {
 	return mock
 }
 
+func newPromptCounter() func(string) int {
+	var mu sync.Mutex
+	counts := make(map[string]int)
+	return func(prompt string) int {
+		mu.Lock()
+		defer mu.Unlock()
+		counts[prompt]++
+		return counts[prompt]
+	}
+}
+
 func createMockIncrementalLLM(t *testing.T) engines.LLM {
 	t.Helper()
 	ctrl := gomock.NewController(t)
 	mock := mocks.NewMockLLM(ctrl)
-	counters := make(map[string]int)
+	nextCount := newPromptCounter()
 	mock.EXPECT().Chat(gomock.Any()).DoAndReturn(func(prompt *engines.ChatPrompt) (*engines.ChatMessage, error) {
-		counters[prompt.History[0].Text]++
+		count := nextCount(prompt.History[0].Text)
 		return &engines.ChatMessage{
-			Text: strings.Repeat(prompt.History[0].Text, counters[prompt.History[0].Text]),
+			Text: strings.Repeat(prompt.History[0].Text, count),
 		}, nil
 	}).AnyTimes()
 	return mock
@@ -42,11 +55,11 @@ func createMockExponentialLLM(t *testing.T) engines.LLM {
 	t.Helper()
 	ctrl := gomock.NewController(t)
 	mock := mocks.NewMockLLM(ctrl)
-	counters := make(map[string]int)
+	nextCount := newPromptCounter()
 	mock.EXPECT().Chat(gomock.Any()).DoAndReturn(func(prompt *engines.ChatPrompt) (*engines.ChatMessage, error) {
-		counters[prompt.History[0].Text]++
+		count := nextCount(prompt.History[0].Text)
 		return &engines.ChatMessage{
-			Text: strings.Repeat(prompt.History[0].Text, int(math.Pow(float64(len(prompt.History[0].Text)), float64(counters[prompt.History[0].Text]+1)))),
+			Text: strings.Repeat(prompt.History[0].Text, int(math.Pow(float64(len(prompt.History[0].Text)), float64(count+1)))),
 		}, nil
 	}).AnyTimes()
 	return mock
@@ -56,10 +69,10 @@ func createMockOddErrorLLM(t *testing.T) engines.LLM {
 	t.Helper()
 	ctrl := gomock.NewController(t)
 	mock := mocks.NewMockLLM(ctrl)
-	counters := make(map[string]int)
+	nextCount := newPromptCounter()
 	mock.EXPECT().Chat(gomock.Any()).DoAndReturn(func(prompt *engines.ChatPrompt) (*engines.ChatMessage, error) {
-		counters[prompt.History[0].Text]++
-		if counters[prompt.History[0].Text]%2 == 1 {
+		count := nextCount(prompt.History[0].Text)
+		if count%2 == 1 {
 			return nil, errors.New("error")
 		}
 		return &engines.ChatMessage{

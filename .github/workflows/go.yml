@@ -35,7 +35,7 @@ jobs:
           echo "GO_LLM_TEST_CHROME=${shell[0]}" >> "$GITHUB_ENV"
           echo "PLAYWRIGHT_BROWSERS_PATH=$PLAYWRIGHT_BROWSERS_PATH" >> "$GITHUB_ENV"
       - name: Test the harness with the race detector
-        run: go test -race . ./capabilities ./models ./integrations ./storage ./workspace/... ./durable/... ./browser ./codemode/...
+        run: go test -race . ./evaluation ./capabilities ./models ./integrations ./storage ./workspace/... ./durable/... ./browser ./codemode/...
       - name: Pull the workspace test image
         run: docker pull alpine:3
       - name: Test all packages
